@@ -6,12 +6,10 @@ function [ grid ] = makeGrid(H, Nz)
     W_pts = Nz+1;
 
     dz = H / Nz;
-    z_W = 0:-dz:-H;
-    z_W = z_W(:); % make z_W into column form
-    
-    z_T = (z_W(1:end-1) + z_W(2:end)) / 2;
-    dz_W = z_W .* 0 + dz;
-    dz_T = z_T .* 0 + dz;
+    zW = 0:-dz:-H;
+    zW = (zW(1:end-1) + zw(2:end)) / 2;
+    dzw = zW .* 0 + dz;
+    dzt = zT .* 0 + dz;
     
     % grid operators
     mask_T = ones(T_pts, 1);
@@ -47,10 +45,10 @@ function [ grid ] = makeGrid(H, Nz)
     grid.W_pts = W_pts;
     
     grid.dz = dz;
-    grid.z_W = z_W;
-    grid.z_T = z_T;
-    grid.dz_W = dz_W;
-    grid.dz_T = dz_T;
+    grid.zw = zw;
+    grid.zt = zt;
+    grid.dzw = dzw;
+    grid.dzt = dzt;
     
     grid.T_I_T = T_I_T;
     grid.W_I_W = W_I_W;

@@ -2,8 +2,8 @@ function [ sop ] = makeSpatialOperators(grid)
 
     d0 = @(v) spdiags(v(:),0,length(v(:)),length(v(:)));
 
-    W_ddz_T = grid.W_imask_W * d0(1./grid.dzw) * (grid.W_DN_T - grid.W_UP_T);
-    T_ddz_W = d0(1./grid.dzt) * (grid.T_DN_W - grid.T_UP_W);
+    W_ddz_T = grid.W_imask_W * d0(1./grid.dz_W) * (grid.W_DN_T - grid.W_UP_T);
+    T_ddz_W = d0(1./grid.dz_T) * (grid.T_DN_W - grid.T_UP_W);
     
     T_ddz2_T = T_ddz_W * W_ddz_T;
     W_interp_T = grid.W_imask_W * (grid.W_DN_T + grid.W_UP_T) / 2.0;
