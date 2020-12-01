@@ -8,6 +8,11 @@ function [ grid ] = makeGrid(H, Nz)
     dz = H / Nz;
     z_W = 0:-dz:-H;
     z_W = z_W(:); % make z_W into column form
+    h_W = -z_W;
+    
+    if (any(h_W < 0))
+        error('[Grid] h_W < 0 for at least one grid')
+    end
     
     z_T = (z_W(1:end-1) + z_W(2:end)) / 2;
     dz_W = z_W .* 0 + dz;
@@ -43,6 +48,7 @@ function [ grid ] = makeGrid(H, Nz)
     T_DN_T = T_DN_W * W_DN_T;
     W_DN_W = W_DN_T * T_DN_W;
     
+    grid.Nz    = Nz;
     grid.T_pts = T_pts;
     grid.W_pts = W_pts;
     
@@ -51,6 +57,8 @@ function [ grid ] = makeGrid(H, Nz)
     grid.z_T = z_T;
     grid.dz_W = dz_W;
     grid.dz_T = dz_T;
+    
+    grid.h_W = h_W;
     
     grid.T_I_T = T_I_T;
     grid.W_I_W = W_I_W;
@@ -67,4 +75,6 @@ function [ grid ] = makeGrid(H, Nz)
     grid.W_UP_W = W_UP_W;
     grid.T_DN_T = T_DN_T;
     grid.W_DN_W = W_DN_W;
+    
+    grid.sop = makeSpatialOperators(grid);
 end

@@ -1,4 +1,4 @@
-classdef Model
+classdef Model < handle 
     properties
         grid
         sop
@@ -9,6 +9,7 @@ classdef Model
         dt
         state
         kpp
+        rad
     end
     methods
 
@@ -25,6 +26,8 @@ classdef Model
             m.dt = dt;
             m.state = State(Nz);
             m.kpp = KPPConstants();
+            m.rad = Radiation(grid);
+            
         end
         
         function showModelInfo(m)
@@ -39,9 +42,7 @@ classdef Model
         function stepModel(m)
             
             % update buoyancy
-            m.state.b = TS2b(m.state.T, m.state.S);
-            
-            ss = m.state.S * 1;
+            m.update_b();
             
             % Backward Euler diffusion
             %
@@ -49,13 +50,24 @@ classdef Model
             % (I - dt * OP) x_t+1 = x_t
             % x_t+1 = (I - dt*OP) \ x_t
             op_diffz = mkOp_diffz(m.grid, m.sop, m.state.b, m.Kv_iso,  m.Kv_cva);
-            sss = ( (m.grid.T_I_T - m.dt * op_diffz) \ m.state.S );
-            m.state.S(:) = ( (m.grid.T_I_T - m.dt * op_diffz) \ m.state.S );
-            m.state.T(:) = (m.grid.T_I_T - m.dt * op_diffz) \ m.state.T;
+            m.state.S = ( (m.grid.T_I_T - m.dt * op_diffz) \ m.state.S );
+            m.state.T = (m.grid.T_I_T - m.dt * op_diffz) \ m.state.T;
             
-            disp(sss');
-            m.state.S(:) = 100;
+            m.update_b();
+            
         end
         
+        function update_b(m)
+            m.state.b = TS2b(m.state.T, m.state.S);
+        end
+        
+        function [ Ri, db, du_sqr, Vt_sqr  ] = update_Ri(m)
+            [Ri, db, du_sqr, Vt_sqr ]  = calBulkRichardsonNumber(m.kpp, m.grid, m.sop, m.state.wb_sfc, m.state.b, m.state.u, m.state.v);
+            m.state.Ri(:) = Ri;
+        end
+        
+        function [ F, Q ] = calRadiation(rad, I0)
+            Q = - I0 * rad.coe_fluxdiv_T;
+        end
     end
 end

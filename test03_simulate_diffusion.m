@@ -1,5 +1,3 @@
-addpath('./KPP');
-
 clear;
 
 Kv_iso = 1e-3;

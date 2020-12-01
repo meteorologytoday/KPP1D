@@ -7,6 +7,9 @@ classdef State < handle
         b
         Ri
         wb_sfc
+        I0
+        h
+        h_k
     end
     methods
 
@@ -17,7 +20,9 @@ classdef State < handle
             s.Ri = s.T * 0;
             s.u = s.T * 0;
             s.v = s.T * 0;
+            
             s.wb_sfc = 0.0;
+            s.I0 = 0.0;
         end
         
     end

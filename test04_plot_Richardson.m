@@ -5,7 +5,7 @@ wb_sfc = 0.001;
 Kv_iso = 1e-3;
 dt = 0.1;
 total_steps = 10 / dt;
-Nz = 20;
+Nz = 200;
 H  = 25; % m
 
 m = Model(H, Nz, Kv_iso, dt);
@@ -29,7 +29,6 @@ gau = @(mag, cent, width) mag * exp(-( (m.grid.z_T - cent) / width ).^2 );
 %m.state.T = m.state.T + gau(dT, dT_cent, dT_width);
 %m.state.S = m.state.S + gau(dS, dS_cent, dS_width);
 m.update_b();
-m.update_Ri();
 
 figure;
 set(gcf, 'PaperUnits', 'inches');
@@ -63,7 +62,7 @@ for step = 1:total_steps
     int_b(end+1) = sum( m.grid.dz_T .* m.state.b);
         
     if mod(step, 1) == 0
-        [ Ri, db, du_sqr, Vt_sqr  ] = update_Ri(m);
+        [ h, Ri, db, du_sqr, Vt_sqr ] = m.update_ML();
         
         for i=1:n
             hold(ax{i}, 'on');
@@ -81,6 +80,10 @@ for step = 1:total_steps
         for i=1:n
             hold(ax{i}, 'off');
         end
+        
+        
+        fprintf('Mixed-layer k : %d\n', m.state.h_k)
+        fprintf('Mixed-layer thickness: %f\n', m.state.h)
         
         return;
         pause(1);
