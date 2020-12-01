@@ -1,5 +1,7 @@
 addpath('./KPP');
 
+clear;
+
 tau0 = 0.1;
 H = 10;
 h = 5;

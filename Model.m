@@ -58,5 +58,10 @@ classdef Model < handle
             m.state.b = TS2b(m.state.T, m.state.S);
         end
         
+        function [ Ri, db, du_sqr, Vt_sqr  ] = update_Ri(m)
+            [Ri, db, du_sqr, Vt_sqr ]  = calBulkRichardsonNumber(m.kpp, m.grid, m.sop, m.state.wb_sfc, m.state.b, m.state.u, m.state.v);
+            m.state.Ri(:) = Ri;
+        end
+        
     end
 end
