@@ -1,7 +1,12 @@
 
+
+
 # (v) convective adjustment
 # (v) bulk richardson number
 # (v) radiation
-# determine mixed-layer depth 
-# non-local transport
-# interior mixing (LMD94 section 4)
+# (v) determine mixed-layer depth 
+# (v) non-local transport
+# (v) interior mixing (LMD94 section 4)
+# ( ) surface flux calculation
+# ( ) momentum evolution
+# ( ) 

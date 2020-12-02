@@ -5,8 +5,9 @@ dt = 0.1;
 total_steps = 20 / dt;
 Nz = 1000;
 H  = 25; % m
+f = 1e-4;
 
-m = Model(H, Nz, Kv_iso, dt);
+m = Model(H, Nz, Kv_iso, dt, f);
 m.showModelInfo();
 
 slope_T = 2 / H;

@@ -8,9 +8,9 @@ function [ grid ] = makeGrid(H, Nz)
     dz = H / Nz;
     z_W = 0:-dz:-H;
     z_W = z_W(:); % make z_W into column form
-    h_W = -z_W;
+    d_W = -z_W;
     
-    if (any(h_W < 0))
+    if (any(d_W < 0))
         error('[Grid] h_W < 0 for at least one grid')
     end
     
@@ -58,7 +58,7 @@ function [ grid ] = makeGrid(H, Nz)
     grid.dz_W = dz_W;
     grid.dz_T = dz_T;
     
-    grid.h_W = h_W;
+    grid.d_W = d_W;
     
     grid.T_I_T = T_I_T;
     grid.W_I_W = W_I_W;

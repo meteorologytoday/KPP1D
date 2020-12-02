@@ -9,10 +9,12 @@ I0 = - 1000;
 %I0 = 1000;
 total_time = 86400;
 dt = 10*60;
+f = 1e-4;
+
 total_steps = total_time / dt;
 
 
-m = Model(H, Nz, Kv_iso, dt);
+m = Model(H, Nz, Kv_iso, dt, f);
 m.showModelInfo();
 
 slope_T = 5 / H;

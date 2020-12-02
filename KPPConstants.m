@@ -9,7 +9,7 @@ function [ o ] = KPPConstants()
     o.calG = @(x) x .* ( 1 - x ).^2;
     o.rho0 = 1026; % seawater density
     o.beta_T = -0.2;
-    o.C_v = 1.0;
+    o.C_v = 1.6;
     o.min_Vtr_sqr = 1e-10;
 
     o.C_star = 10; % LMD94 equation (20)

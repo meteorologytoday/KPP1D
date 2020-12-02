@@ -7,8 +7,9 @@ dt = 0.1;
 total_steps = 10 / dt;
 Nz = 200;
 H  = 25; % m
+f = 1e-4;
 
-m = Model(H, Nz, Kv_iso, dt);
+m = Model(H, Nz, Kv_iso, dt, f);
 m.showModelInfo();
 
 m.state.wb_sfc = wb_sfc;

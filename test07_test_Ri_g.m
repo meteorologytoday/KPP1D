@@ -3,10 +3,11 @@ clear;
 Kv_iso = 1e-3;
 Nz = 100;
 H  = 25; % m
-
+f = 1e-4;
 dt = 10*60;
 
-m = Model(H, Nz, Kv_iso, dt);
+m = Model(H, Nz, Kv_iso, dt, f);
+m.showModelInfo()
 
 u = m.state.u * 0;
 v = m.state.v * 0;

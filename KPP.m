@@ -49,7 +49,10 @@ classdef KPP < handle
 
             phi_s = kpp.calPhi_s(d, L_star);
             w_s = kpp.c.kappa * u_star ./ phi_s;
-
+            
+            % surface phi_s(1) = 0
+            w_s(1) = 1;
+            
             if (L_star < 0) % convective case, w_s topped at sig = eps
                 for i=1:length(sig)
                     if (sig(i) >= kpp.c.eps)
@@ -82,15 +85,18 @@ classdef KPP < handle
         
         % k is the index of deepest layer of mixed-layer 
         % h = grid.h_W(k+1);
-        function [ h, k ] = calMixedLayerDepth(kpp, grid, Ri)
+        function [ h, k ] = calMixedLayerDepth(kpp, grid, Ri, u_star, f)
             
             % find Richardson number first exceeds kpp.c.Ri_c
             k = 0;
             for i=1:grid.Nz
                 if (Ri(i) > kpp.c.Ri_c)
+                    %fprintf('%d => %f\n', i, Ri(i));
                     if (i == 1)
+                        
                         k = 1;  % min MLT needs at least one;
                     else
+                        
                         k = i - 1;
                     end
                     
@@ -103,7 +109,22 @@ classdef KPP < handle
                 k = grid.Nz - 1;
             end
             
-            h = grid.h_W(k+1);
+            h = grid.d_W(k+1);
+            
+            % h cannot exceeds Ekman depth as in
+            % LMD94 equation (24)
+            h_E = (0.7 * u_star / f);
+            if (h > h_E && h < 0)
+                for i=2:grid.Nz  % start from 2 because h is at least one level
+                    if grid.d_W(i+1) > h_E
+                        k = i-1;
+                        h = grid.d_W(k+1);
+                        break;
+                    end
+                end
+            end
+            
+            %fprintf('Mixed-layer depth: %f  , h_E =  %f \n', h, h_E);
         end
         
         % Calculate scalar shape function in LMD equation (28)
@@ -124,7 +145,7 @@ classdef KPP < handle
         
         function [ K_s_ML, K_s_INT ]  = calK_s(kpp, grid, h_k, tau0, wb_sfc, b, u, v)
             d0 = @(v) spdiags(v(:),0,length(v(:)),length(v(:)));
-            h = grid.h_W(h_k + 1);
+            h = grid.d_W(h_k + 1);
            
             [ w_s, sigma, ~, ~ ] = calw_s(kpp, grid.z_W, h, tau0, wb_sfc);
             
@@ -132,16 +153,24 @@ classdef KPP < handle
             W_ML_mask_W = d0( sigma <= 1 ); % Mixed-layer
             W_INT_mask_W = d0( sigma > 1 ); % Interior
             
-            K_s_ML = W_ML_mask_W * (h * G .* w_s);
-            K_s_INT = + W_INT_mask_W * calInteriorK_s(kpp, grid, b, u, v);
+            K_s_ML = W_ML_mask_W * (h * G .* w_s);     
+            K_s_INT = W_INT_mask_W * calInteriorK_s(kpp, grid, b, u, v);
+            
         end
         
         % LMD94 equation (19) and (20) for scalar
         % Also the same as RAD18 equation (19)
-        function flux = calNonLocalFlux_s(kpp, grid, h_k, ws_sfc)
-            sig = grid.d_W / grid.h_W(h_k+1);
-            flux = kpp.c.C_s * kpp.c.G(sig) * ws_sfc;
-            flux(sig > 1) = 0;
+        function flux = calNonLocalFlux_s(kpp, grid, h_k, wb_sfc, ws_sfc)
+            
+            if (wb_sfc > 0) % unstable case, nonlocal flux is nonzero
+                h = grid.d_W(h_k+1);
+                sig = grid.d_W / h;
+                flux = kpp.c.C_s * kpp.c.calG(sig) * ws_sfc;
+                flux(sig > 1) = 0;
+            else
+                flux = zeros(grid.W_pts, 1);
+            end
+            
         end
         
         % LMD94 equation (19) and (20) for momentum
@@ -150,11 +179,6 @@ classdef KPP < handle
             flux = zeros(length(grid.W_pts), 1);
         end
         
-        
-        function [ K_s_ML, K_s_INT, flux_nonlocal ] = calKPP_s(kpp, grid, h_k, tau0, wb_sfc, ws_sfc, b, u, v)
-            [ K_s_ML, K_s_INT ] = kpp.calK_s(grid, h_k, tau0, wb_sfc, b, u, v);
-            flux_nonlocal = kpp.calNonLocalFlux_s(grid, h_k, ws_sfc);
-        end
         
     end
     
