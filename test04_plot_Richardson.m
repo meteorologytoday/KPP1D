@@ -1,4 +1,4 @@
-addpath('./KPP');
+clear;
 
 varnames = { "T", "S", "b", "Ri", "b_{sl} - b", "u_{sl} - u", "V_t^2", "N"};
 wb_sfc = 0.001;
@@ -75,7 +75,7 @@ for step = 1:total_steps
         plot(ax{5}, db, m.grid.z_T);
         plot(ax{6}, du_sqr, m.grid.z_T);
         plot(ax{7}, Vt_sqr, m.grid.z_T);
-        plot(ax{8}, m.sop.T_interp_W * m.sop.W_ddz_T * m.state.b, m.grid.z_T);
+        plot(ax{8}, m.grid.sop.T_interp_W * m.grid.sop.W_ddz_T * m.state.b, m.grid.z_T);
         
         for i=1:n
             hold(ax{i}, 'off');

@@ -1,5 +1,5 @@
 clear;
-addpath('./KPP');
+
 varnames = { "T", "b", "N"};
 
 Kv_iso = 1e-3;

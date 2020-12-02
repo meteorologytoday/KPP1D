@@ -48,7 +48,7 @@ classdef Model < handle
             [ ~, Q ] = m.rad.calRadiation(m.state.I0 / (m.c.cp_sw * m.c.rho_sw));
             m.state.T = m.state.T + m.dt * Q;
         end
-        
+ 
         function stepModel_diffusion(m)
             
             % update buoyancy
@@ -62,6 +62,27 @@ classdef Model < handle
             op_diffz = mkOp_diffz(m.grid, m.state.b, m.Kv_iso,  m.Kv_cva);
             m.state.S = ( (m.grid.T_I_T - m.dt * op_diffz) \ m.state.S );
             m.state.T = (m.grid.T_I_T - m.dt * op_diffz) \ m.state.T;
+            
+            m.update_b();
+            
+        end
+
+        function stepModel_KPP(m)
+            
+            % update buoyancy
+            m.update_b();
+
+            % calculate surface forcing for temperature and salinity
+            
+            
+            % determine mixed-layer depth
+            
+            % calculate K_s and nonlocal transport for temperature and salinity
+            
+            % step model
+            
+            
+            
             
             m.update_b();
             

@@ -151,9 +151,10 @@ classdef KPP < handle
         end
         
         
-        function [ K_s_ML, K_s_INT, flux_nonlocal ] = calKPP_s(kpp, grid, h_k, tau0, wb_sfc, ws_sfc, b, u, v)
+        function [ K_s_ML, K_s_INT, flux_nonlocal ] = calKPP_s(kpp, grid, h_k, tau0, wb_sfc, b, u, v)
             [ K_s_ML, K_s_INT ] = kpp.calK_s(grid, h_k, tau0, wb_sfc, b, u, v);
-            flux_nonlocal = kpp.calNonLocalFlux_s(grid, h_k, ws_sfc);
+            flux_nonlocal = kpp.calNonLocalFlux_s(grid, h_k);
+            flux = kpp.calNonlocalFlux() + kpp.calLocalFlux() + kpp.calInteriorFlux();
         end
         
     end
