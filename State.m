@@ -6,9 +6,12 @@ classdef State < handle
         S
         b
         Ri
+        B_f = 0
         wT_0 = 0
         wS_0 = 0
         wb_0 = 0
+        wT_R = 0
+        wb_R = 0
         wu_0 = 0
         wv_0 = 0
         U      = 0  % surface wind speed on x direction

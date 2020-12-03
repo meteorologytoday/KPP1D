@@ -8,7 +8,7 @@ classdef KPP < handle
             kpp.c = KPPConstants();
         end
         
-        function [ u_star, L_star ] = calMOSTscales(kpp, tau0, wb_0)
+        function [ u_star, L_star ] = calMOSTscales(kpp, tau0, B_f)
             
             if (tau0 == 0)
                 tau0 = 1e-10;
@@ -17,21 +17,21 @@ classdef KPP < handle
             end
             
             u_star = ( abs(tau0) / kpp.c.rho0 )^0.5;
-            L_star = u_star^3 / ( - kpp.c.kappa * wb_0 );
+            L_star = u_star^3 / ( - kpp.c.kappa * B_f );
             
-            if (wb_0 == 0)  % assume very weak wb_b0 > 0
+            if (B_f == 0)  % assume very weak wb_b0 > 0
                 L_star = - inf;
             end
             
         end
         
-        function [ Vtr_sqr ] = calUnresolvedShear(kpp, grid, b, wb_0)
+        function [ Vtr_sqr ] = calUnresolvedShear(kpp, grid, b, B_f)
 
             N_osbl = (grid.sop.W_ddz_T * b).^0.5;
             d = - grid.z_W;
 
-            if (wb_0 > 0)
-                w_star = (d * wb_0).^(1/3);
+            if (B_f > 0)
+                w_star = (d * B_f).^(1/3);
             else
                 w_star = d * 0;
             end
@@ -64,9 +64,9 @@ classdef KPP < handle
             end
         end
         
-        function [ w_x, sig, u_star, L_star ] = calw_x(kpp, x, z, h, tau0, wb_0)
+        function [ w_x, sig, u_star, L_star ] = calw_x(kpp, x, z, h, tau0, B_f)
             
-            [ u_star, L_star ] = kpp.calMOSTscales(tau0, wb_0);
+            [ u_star, L_star ] = kpp.calMOSTscales(tau0, B_f);
             d = -z;
             sig = d ./ h;
                    
@@ -96,10 +96,10 @@ classdef KPP < handle
             end
         end
         
-        function [ Ri, db, du_sqr, Vt_sqr ] = calBulkRichardsonNumber(kpp, grid, wb_0, b, u, v)
+        function [ Ri, db, du_sqr, Vt_sqr ] = calBulkRichardsonNumber(kpp, grid, B_f, b, u, v)
             db = b(1) - b;
             du_sqr = (u(1) - u).^2 + (v(1) - v).^2;
-            Vt_sqr = grid.sop.T_interp_W * calUnresolvedShear(kpp, grid, b, wb_0);
+            Vt_sqr = grid.sop.T_interp_W * calUnresolvedShear(kpp, grid, b, B_f);
 
             Ri = (- grid.z_T) .* db ./ ( du_sqr + Vt_sqr );
         end
@@ -144,7 +144,7 @@ classdef KPP < handle
             h = grid.d_W(k+1);
             
             
-            % When stable forcing (wb_0 < 0 or L_star > 0)
+            % When stable forcing (B_f < 0 or L_star > 0)
             % h cannot exceeds L_star or Ekman depth as in
             % LMD94 equation (24)
             if (L_star > 0)
@@ -188,11 +188,11 @@ classdef KPP < handle
             K_sh = 50e-4 * kpp.shapeInterior(Ri_g);
         end
         
-        function [ K_x_ML, K_x_INT ]  = calK_x(kpp, x, grid, h_k, tau0, wb_0, b, u, v)
+        function [ K_x_ML, K_x_INT ]  = calK_x(kpp, x, grid, h_k, tau0, B_f, b, u, v)
             d0 = @(v) spdiags(v(:),0,length(v(:)),length(v(:)));
             h = grid.d_W(h_k + 1);
            
-            [ w_x, sigma, ~, ~ ] = kpp.calw_x(x, grid.z_W, h, tau0, wb_0);
+            [ w_x, sigma, ~, ~ ] = kpp.calw_x(x, grid.z_W, h, tau0, B_f);
             
             G = kpp.c.calG(sigma);
             W_ML_mask_W = d0( sigma <= 1 ); % Mixed-layer
@@ -205,9 +205,9 @@ classdef KPP < handle
         
         % LMD94 equation (19) and (20) for scalar
         % Also the same as RAD18 equation (19)
-        function flux = calNonLocalFlux_s(kpp, grid, h_k, wb_0, ws_0)
+        function flux = calNonLocalFlux_s(kpp, grid, h_k, B_f, ws_0)
             
-            if (wb_0 > 0) % unstable case, nonlocal flux is nonzero
+            if (B_f > 0) % unstable case, nonlocal flux is nonzero
                 h = grid.d_W(h_k+1);
                 sig = grid.d_W / h;
                 flux = kpp.c.C_s * kpp.c.calG(sig) * ws_0;

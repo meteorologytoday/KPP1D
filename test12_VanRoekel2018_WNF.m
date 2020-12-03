@@ -1,7 +1,7 @@
 clear;
 
-% This simulation is meant to reproduce the WNF case in
-% Van Roekel et al (2018) where WNF stands for "Wind stress with no Coriolis"
+% This simulation is meant to reproduce the DC case in
+% Van Roekel et al (2018) where DC stands for "Diurnal Cycle"
 
 Kv_iso = 1e-3;
 Nz = 50;

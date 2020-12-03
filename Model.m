@@ -29,6 +29,9 @@ classdef Model < handle
             m.kpp = KPP();
             m.rad = Radiation(grid);
             m.f = f;
+            
+            m.state.h_k = 1;
+            m.state.h = m.grid.d_W(m.state.h_k + 1);
         end
         
         function showModelInfo(m)
@@ -43,22 +46,20 @@ classdef Model < handle
         
         function [ diag_kpp ] = stepModel(m)
             % calculate surface forcing for temperature and salinity
-            % m.calSurfaceForcing();
             T_0 = m.state.T(1);
             S_0 = m.state.S(1);
+            alpha_0 = TS2alpha(T_0, S_0);
+            beta_0 = TS2beta(T_0, S_0);
             m.state.tau0 = sqrt(m.state.taux0^2 + m.state.tauy0^2);
-            m.state.wb_0 = m.c.g * ( TS2alpha(T_0, S_0) * m.state.wT_0 - TS2beta(T_0, S_0) * m.state.wS_0 );
+            m.state.wT_R = m.rad.coe_turbulent_flux_T(m.state.h_k) * m.state.I0 / (m.c.cp_sw * m.c.rho_sw);
+            m.state.wb_R = m.c.g * alpha_0 * m.state.wT_R;
+            m.state.wb_0 = m.c.g * ( alpha_0 * m.state.wT_0 - beta_0 * m.state.wS_0 );
             m.state.wu_0 = - m.state.taux0 / m.c.rho_sw;
             m.state.wv_0 = - m.state.tauy0 / m.c.rho_sw;
+            m.state.B_f = m.state.wb_R + m.state.wb_0;
             
-            % Step T and S
-            %m.stepModel_radiation();
-
-            
+            m.stepModel_radiation();
             m.stepModel_momentum();
-%            m.stepModel_surface_hydrology();
-
-%            m.stepModel_surface_heat_flux();
             diag_kpp = m.stepModel_KPP();
         end
         
@@ -123,7 +124,7 @@ classdef Model < handle
             sfc_flux_v(1) = m.state.wv_0;
             
             % 3. Calculate nonlocal transport
-            nloc_flux_T = m.kpp.calNonLocalFlux_s(m.grid, m.state.h_k, m.state.wb_0, m.state.wT_0);
+            nloc_flux_T = m.kpp.calNonLocalFlux_s(m.grid, m.state.h_k, m.state.wb_0, m.state.wT_0 + m.state.wT_R);
             nloc_flux_S = m.kpp.calNonLocalFlux_s(m.grid, m.state.h_k, m.state.wb_0, m.state.wS_0);
             
             diag_kpp.nloc_flux_T = nloc_flux_T;
@@ -141,7 +142,7 @@ classdef Model < handle
             [ K_m_ML, K_m_INT ]  = m.kpp.calK_x(m.kpp.c.MOMENTUM, m.grid, m.state.h_k, m.state.tau0, m.state.wb_0, m.state.b, m.state.u, m.state.v);
             %K_cva = m.calConvectiveAdjustmentK(m.grid, m.state.b, m.Kv_cva);
 
-            K_s_total = K_s_ML + K_s_INT ;%+ K_cva;
+            K_s_total = K_s_ML + K_s_INT ;
             diag_kpp.K_s_ML = K_s_ML;
             diag_kpp.K_s_INT = K_s_INT;
             
@@ -169,7 +170,7 @@ classdef Model < handle
         end
         
         function [ h, Ri, db, du_sqr, Vt_sqr ] = update_ML(m)
-            [ u_star, L_star ] = m.kpp.calMOSTscales(m.state.tau0, m.state.wb_0);
+            [ u_star, L_star ] = m.kpp.calMOSTscales(m.state.tau0, m.state.B_f);
             [Ri, db, du_sqr, Vt_sqr ]  = m.kpp.calBulkRichardsonNumber(m.grid, m.state.wb_0, m.state.b, m.state.u, m.state.v);
             
             m.state.Ri(:) = Ri;
