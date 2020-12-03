@@ -6,7 +6,6 @@ function [ b ] = TS2b(T, S)
 
     dT = T - c.T_ref;
     dS = S - c.S_ref;
-    b = - c.g * ( c.rho1*dT + c.rho2*dS +  c.rho3*(dT.^2) + c.rho4*(dS.^2) ...
-        + c.rho5* (dT.*dS) + c.rho6*(dT.^3) + c.rho7*(dS.^2).*dT + c.rho8*(dT.^2).*dS + c.rho9*(dS.^3) );
+    b = - c.g * (1 - c.alpha * dT + c.beta * dS);
     
 end

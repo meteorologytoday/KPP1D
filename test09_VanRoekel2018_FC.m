@@ -4,12 +4,12 @@ clear;
 % Roekel et al (2018) where FC stands for "free convection"
 
 Kv_iso = 1e-3;
-Nz = 50;
-H  = 50; % m
-total_time = 86400 * 3;
+Nz = 150;
+H  = 150; % m
+total_time = 86400 * 8;
 dt = 30 * 60;
 f = 1e-4;
-wT_0 = 75 / 1024 / 3996;
+Hf_sen = 75;
 pause_time = 0.0;
 
 total_steps = total_time / dt;
@@ -27,10 +27,10 @@ m.state.T = T_0 + slope_T * m.grid.z_T;
 m.state.S = S_0 + slope_S * m.grid.z_T;
 m.update_b();
 
-
-m.state.taux0 = 1e-2;
+m.state.taux0 = 0;
 m.state.tauy0 = 0;
-m.state.wT_0 = wT_0;
+
+m.state.Hf_sen = Hf_sen;
 
 t(1) = 0;
 h(1) = m.state.h;
@@ -71,7 +71,7 @@ hold off;
 
 figure;
 plot( t / 86400, h, 'k-' );
-title('h vs time');
+title('Roekel et al (2018) Figure 3(a)');
 xlabel('Time [days]');
 ylabel('h [m]');
 set(gca, 'Ydir', 'reverse');

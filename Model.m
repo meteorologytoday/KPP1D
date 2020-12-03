@@ -51,22 +51,22 @@ classdef Model < handle
             alpha_0 = TS2alpha(T_0, S_0);
             beta_0 = TS2beta(T_0, S_0);
             m.state.tau0 = sqrt(m.state.taux0^2 + m.state.tauy0^2);
-            m.state.wT_R = m.rad.coe_turbulent_flux_T(m.state.h_k) * m.state.I0 / (m.c.cp_sw * m.c.rho_sw);
+            m.state.wT_0 = (m.state.Hf_sen + m.state.Hf_lat) / m.c.cprho_sw;
+            m.state.wT_R = m.rad.coe_turbulent_flux_T(m.state.h_k) * m.state.I_0 / m.c.cprho_sw;
             m.state.wb_R = m.c.g * alpha_0 * m.state.wT_R;
             m.state.wb_0 = m.c.g * ( alpha_0 * m.state.wT_0 - beta_0 * m.state.wS_0 );
             m.state.wu_0 = - m.state.taux0 / m.c.rho_sw;
             m.state.wv_0 = - m.state.tauy0 / m.c.rho_sw;
             m.state.B_f = m.state.wb_R + m.state.wb_0;
             
-            m.stepModel_radiation();
             m.stepModel_momentum();
+            m.stepModel_radiation();
             diag_kpp = m.stepModel_KPP();
         end
         
         function stepModel_radiation(m)
-            [ ~, Q ] = m.rad.calRadiation(m.state.I0 / (m.c.cp_sw * m.c.rho_sw));
+            [ ~, Q ] = m.rad.calRadiation(m.state.I_0 / m.c.cprho_sw);
             m.state.T = m.state.T + m.dt * Q;
-            m.update_b();
         end
 
         % For Coriolis terms. Use Runge-Kutta 4th order instead of
@@ -77,13 +77,7 @@ classdef Model < handle
 
         end
         
-        function stepModel_surface_heat_flux(m)
-            flux = zeros(m.grid.W_pts, 1);
-            flux(1) = m.state.wT_0;
-            m.state.T = m.state.T - m.dt * m.grid.sop.T_ddz_W * flux;
-        end
-
-        
+   
         function stepModel_diffusion(m)
             
             % update buoyancy
@@ -106,8 +100,6 @@ classdef Model < handle
             
             d0 = @(v) spdiags(v(:),0,length(v(:)),length(v(:)));
             
-            m.update_b();
-
             % 1. Determine mixed-layer depth
             m.update_ML();
             

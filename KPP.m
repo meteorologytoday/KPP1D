@@ -17,17 +17,20 @@ classdef KPP < handle
             end
             
             u_star = ( abs(tau0) / kpp.c.rho0 )^0.5;
-            L_star = u_star^3 / ( - kpp.c.kappa * B_f );
             
             if (B_f == 0)  % assume very weak wb_b0 > 0
                 L_star = - inf;
+            else
+                L_star = u_star^3 / ( - kpp.c.kappa * B_f );
             end
             
         end
         
         function [ Vtr_sqr ] = calUnresolvedShear(kpp, grid, b, B_f)
 
-            N_osbl = (grid.sop.W_ddz_T * b).^0.5;
+            N_osbl = grid.sop.W_ddz_T * b;
+            N_osbl(N_osbl < 0) = 0;
+            N_osbl = sqrt(N_osbl);
             d = - grid.z_W;
 
             if (B_f > 0)
@@ -102,6 +105,7 @@ classdef KPP < handle
             Vt_sqr = grid.sop.T_interp_W * calUnresolvedShear(kpp, grid, b, B_f);
 
             Ri = (- grid.z_T) .* db ./ ( du_sqr + Vt_sqr );
+            %Ri(1) = Ri(2);
         end
         
         % LMD94 equation (27)
@@ -155,9 +159,7 @@ classdef KPP < handle
                 end
                 
                 h_max = min(h_E, L_star);
-                
-            
-            
+
                 if (h > h_max)
                     for i=2:grid.Nz  % start from 2 because h is at least one level
                         if grid.d_W(i+1) > h_max

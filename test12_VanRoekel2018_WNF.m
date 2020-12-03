@@ -4,8 +4,8 @@ clear;
 % Van Roekel et al (2018) where DC stands for "Diurnal Cycle"
 
 Kv_iso = 1e-3;
-Nz = 50;
-H  = 50; % m
+Nz = 150;
+H  = 150; % m
 total_time = 86400;
 dt = 10*60;
 f = 0;

@@ -16,7 +16,7 @@ classdef State < handle
         wv_0 = 0
         U      = 0  % surface wind speed on x direction
         V      = 0  % surface wind speed on y direction
-        I0     = 0  % radiation           positive upward
+        I_0    = 0  % radiation           positive upward
         Hf_sen = 0  % sensible heat flux  positive upward
         Hf_lat = 0  % latent heat flux    positive upward
         h      = 0
@@ -36,8 +36,6 @@ classdef State < handle
             s.Ri = s.T * 0;
             s.u = s.T * 0;
             s.v = s.T * 0;
-            
-            s.I0 = 0.0;
         end
         
     end

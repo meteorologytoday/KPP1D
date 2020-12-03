@@ -1,3 +1,5 @@
+% As suggested by LMD94, we use the same coefficient
+% given by Paulson & Simpson (1977)
 classdef Radiation < handle 
     properties
         N     % bands of radiation
@@ -13,7 +15,7 @@ classdef Radiation < handle
 
         function o = Radiation(grid)
             r = [0.58 ; 0.42];
-            mu_inv = 1 ./ [0.35 ; 23];
+            mu_inv = [0.35 ; 23];
             N = length(r);
             
             coe_flux_W    = zeros(grid.W_pts, N);

@@ -5,7 +5,7 @@ varnames = { "T", "b", "N"};
 Kv_iso = 1e-3;
 Nz = 100;
 H  = 25; % m
-I0 = - 1000;
+I_0 = - 1000;
 %I0 = 1000;
 total_time = 86400;
 dt = 10*60;
@@ -24,10 +24,10 @@ S_sfc = 35;
 
 m.state.T = T_sfc + slope_T * m.grid.z_T;
 m.state.S = S_sfc + slope_S * m.grid.z_T;
-m.state.I0 = I0;
+m.state.I_0 = I_0;
 m.update_b();
 
-[ F, Q ] = m.rad.calRadiation(I0);
+[ F, Q ] = m.rad.calRadiation(I_0);
 
 ax{1} = subplot(1,2,1);
 plot(F, m.grid.z_W);
@@ -93,7 +93,7 @@ xlabel('time (s)');
 
 
 %%%% cal total change of T %%%%
-fprintf("Expected input energy = (-1) * total time * I0 = %f (J)\n", - total_time * m.state.I0);
+fprintf("Expected input energy = (-1) * total time * I_0 = %f (J)\n", - total_time * m.state.I_0);
 fprintf("Simulated change = %f (J) \n", ( int_T(end) - int_T(1) ) * m.c.rho_sw * m.c.cp_sw);
 
 

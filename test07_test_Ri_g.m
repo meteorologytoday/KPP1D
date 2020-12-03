@@ -13,8 +13,9 @@ u = m.state.u * 0;
 v = m.state.v * 0;
 b = m.state.b * 0;
 
-N = 0.1;
-b = N * m.grid.z_T;
+dbdz = 0.01;
+N = sqrt(dbdz);
+b = dbdz * m.grid.z_T;
 
 shear_bnd = [-5 -15];
 x = (m.grid.z_T - shear_bnd(1)) / (shear_bnd(2) - shear_bnd(1));
@@ -34,7 +35,7 @@ Ri_g_true(m.grid.z_W <= shear_bnd(2)) = inf;
 
 
 Ri_g = m.kpp.calGradientRichardsonNumber(m.grid, b, u, v);
-K_s = m.kpp.calInteriorK_s(m.grid, b, u, v);
+K_s = m.kpp.calInteriorK_sh(m.grid, b, u, v);
 
 subplot(1, 5, 1);
 plot(b, m.grid.z_T);
