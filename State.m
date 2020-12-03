@@ -21,8 +21,8 @@ classdef State < handle
         Hf_lat = 0  % latent heat flux    positive upward
         h      = 0
         h_k    = 0
-        Precip = 0  % m / s
-        Evap   = 0 % m / s
+        precip = 0  % m / s
+        evap   = 0 % m / s
         tau0   = 0 % Pa
         taux0  = 0 % Pa
         tauy0  = 0 % Pa

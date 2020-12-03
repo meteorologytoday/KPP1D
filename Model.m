@@ -53,6 +53,7 @@ classdef Model < handle
             m.state.tau0 = sqrt(m.state.taux0^2 + m.state.tauy0^2);
             m.state.wT_0 = (m.state.Hf_sen + m.state.Hf_lat) / m.c.cprho_sw;
             m.state.wT_R = m.rad.coe_turbulent_flux_T(m.state.h_k) * m.state.I_0 / m.c.cprho_sw;
+            m.state.wS_0 = (m.state.precip - m.state.evap) * S_0;
             m.state.wb_R = m.c.g * alpha_0 * m.state.wT_R;
             m.state.wb_0 = m.c.g * ( alpha_0 * m.state.wT_0 - beta_0 * m.state.wS_0 );
             m.state.wu_0 = - m.state.taux0 / m.c.rho_sw;
