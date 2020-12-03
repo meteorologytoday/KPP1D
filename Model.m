@@ -120,9 +120,7 @@ classdef Model < handle
             nloc_flux_T = m.kpp.calNonLocalFlux_s(m.grid, m.state.h_k, m.state.wb_0, m.state.wT_0 + m.state.wT_R);
             nloc_flux_S = m.kpp.calNonLocalFlux_s(m.grid, m.state.h_k, m.state.wb_0, m.state.wS_0);
             
-            diag_kpp.nloc_flux_T = nloc_flux_T;
-            diag_kpp.nloc_flux_S = nloc_flux_S;
-    
+            
             %m.state.T = m.state.T - m.dt * m.grid.sop.T_ddz_W * nloc_flux_T;
             %m.state.S = m.state.S - m.dt * m.grid.sop.T_ddz_W * nloc_flux_S;
             %m.update_b();
@@ -131,31 +129,41 @@ classdef Model < handle
             % 4. Build diffusion operator for Euler backward method
             % calculate K_s for temperature and salinity
             [ K_s_ML, K_s_INT ]  = m.kpp.calK_x(m.kpp.c.SCALAR, m.grid, m.state.h_k, m.state.tau0, m.state.wb_0, m.state.b, m.state.u, m.state.v);
+
             % calculate K_m for u, v
             [ K_m_ML, K_m_INT ]  = m.kpp.calK_x(m.kpp.c.MOMENTUM, m.grid, m.state.h_k, m.state.tau0, m.state.wb_0, m.state.b, m.state.u, m.state.v);
-            %K_cva = m.calConvectiveAdjustmentK(m.grid, m.state.b, m.Kv_cva);
 
             K_s_total = K_s_ML + K_s_INT ;
-            diag_kpp.K_s_ML = K_s_ML;
-            diag_kpp.K_s_INT = K_s_INT;
-            
             K_m_total = K_m_ML + K_m_INT;
             
-            op_diffusion_s = m.grid.sop.T_ddz_W * d0(K_s_total) * m.grid.sop.W_ddz_T;
-            op_diffusion_m = m.grid.sop.T_ddz_W * d0(K_m_total) * m.grid.sop.W_ddz_T;
-            
+            op_local_flux_s = - d0(K_s_total) * m.grid.sop.W_ddz_T;
+            op_diffusion_s = - m.grid.sop.T_ddz_W * op_local_flux_s;
             M_s = m.grid.T_I_T - m.dt * op_diffusion_s;
+            
+            op_local_flux_m = - d0(K_m_total) * m.grid.sop.W_ddz_T;
+            op_diffusion_m = - m.grid.sop.T_ddz_W * op_local_flux_m;
             M_m = m.grid.T_I_T - m.dt * op_diffusion_m;
+            
+            diag_kpp.loc_flux_S = op_local_flux_s * m.state.S;
+            diag_kpp.loc_flux_T = op_local_flux_s * m.state.T;
             
             % 5. Step the model states
             % nonlocal and surface flux
-            m.state.S = M_s \ ( m.state.S - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_S + sfc_flux_S));
-            m.state.T = M_s \ ( m.state.T - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_T + sfc_flux_T));
+            m.state.S = M_s \ ( m.state.S - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_S + sfc_flux_S ));
+            m.state.T = M_s \ ( m.state.T - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_T + sfc_flux_T ));
             m.state.u = M_m \ ( m.state.u - m.dt * m.grid.sop.T_ddz_W * sfc_flux_u);
             m.state.v = M_m \ ( m.state.v - m.dt * m.grid.sop.T_ddz_W * sfc_flux_v);
             
             m.update_b();
-                    
+
+            
+            diag_kpp.nloc_flux_T = nloc_flux_T;
+            diag_kpp.nloc_flux_S = nloc_flux_S;
+            diag_kpp.K_s_ML = K_s_ML;
+            diag_kpp.K_s_INT = K_s_INT;
+            diag_kpp.K_m_ML = K_m_ML;
+            diag_kpp.K_m_INT = K_m_INT;
+            
         end
         
         function update_b(m)
