@@ -6,9 +6,11 @@ classdef State < handle
         S
         b
         Ri
-        wb_sfc = 0
-        wT_sfc = 0
-        wS_sfc = 0
+        wT_0 = 0
+        wS_0 = 0
+        wb_0 = 0
+        wu_0 = 0
+        wv_0 = 0
         U      = 0  % surface wind speed on x direction
         V      = 0  % surface wind speed on y direction
         I0     = 0  % radiation           positive upward
@@ -18,7 +20,9 @@ classdef State < handle
         h_k    = 0
         Precip = 0  % m / s
         Evap   = 0 % m / s
-        tau0   = 0
+        tau0   = 0 % Pa
+        taux0  = 0 % Pa
+        tauy0  = 0 % Pa
     end
     methods
 
@@ -30,7 +34,6 @@ classdef State < handle
             s.u = s.T * 0;
             s.v = s.T * 0;
             
-            s.wb_sfc = 0.0;
             s.I0 = 0.0;
         end
         

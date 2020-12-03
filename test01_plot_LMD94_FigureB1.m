@@ -13,12 +13,18 @@ kpp = KPP();
 phi_s_conv = kpp.calPhi_s(d, L_star);
 phi_s_stab = kpp.calPhi_s(d, -L_star);
 
+phi_m_conv = kpp.calPhi_m(d, L_star);
+phi_m_stab = kpp.calPhi_m(d, -L_star);
+
 % This subplot should look like LMD94 Figure B1. scalar
 subplot(111);
 title(sprintf('u_* = %f, L_* = %f', u_star, L_star));
 hold on;
-plot(d / L_star, phi_s_conv);
-plot(-d / L_star, phi_s_stab);
+plot(d / L_star, phi_s_conv, 'k--');
+plot(-d / L_star, phi_s_stab, 'k--');
+
+plot(d / L_star, phi_m_conv, 'k-');
+plot(-d / L_star, phi_m_stab, 'k-');
 xlim([-2 .2]);
 hold off;
 

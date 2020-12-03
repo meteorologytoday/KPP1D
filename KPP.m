@@ -8,18 +8,30 @@ classdef KPP < handle
             kpp.c = KPPConstants();
         end
         
-        function [ u_star, L_star ] = calMOSTscales(kpp, tau0, wb_sfc)
+        function [ u_star, L_star ] = calMOSTscales(kpp, tau0, wb_0)
+            
+            if (tau0 == 0)
+                tau0 = 1e-10;
+            elseif (tau0 < 0)
+                error('tau0 must be equal or greater than zero');
+            end
+            
             u_star = ( abs(tau0) / kpp.c.rho0 )^0.5;
-            L_star = u_star^3 / ( - kpp.c.kappa * wb_sfc );
+            L_star = u_star^3 / ( - kpp.c.kappa * wb_0 );
+            
+            if (wb_0 == 0)  % assume very weak wb_b0 > 0
+                L_star = - inf;
+            end
+            
         end
         
-        function [ Vtr_sqr ] = calUnresolvedShear(kpp, grid, b, wb_sfc)
+        function [ Vtr_sqr ] = calUnresolvedShear(kpp, grid, b, wb_0)
 
-            N_osbl = grid.sop.W_ddz_T * b;
+            N_osbl = (grid.sop.W_ddz_T * b).^0.5;
             d = - grid.z_W;
 
-            if (wb_sfc > 0)
-                w_star = (d * wb_sfc).^(1/3);
+            if (wb_0 > 0)
+                w_star = (d * wb_0).^(1/3);
             else
                 w_star = d * 0;
             end
@@ -41,33 +53,53 @@ classdef KPP < handle
             end
         end
         
-        function [ w_s, sig, u_star, L_star ] = calw_s(kpp, z, h, tau0, wb_sfc)
+        % LMD1994 Appendex B for momentum
+        function [ phi_m ] = calPhi_m(kpp, d, L_star)
+            zeta = d / L_star;
+            if (L_star >= 0)
+                phi_m = 1 + 5 * zeta;
+            else
+                phi_m = (1 - 16*zeta).^(-1/4) .* (zeta > -0.2) + ...
+                    (1.26 - 8.38 * zeta).^(-1/3) .* (zeta <= -0.2);
+            end
+        end
+        
+        function [ w_x, sig, u_star, L_star ] = calw_x(kpp, x, z, h, tau0, wb_0)
             
-            [ u_star, L_star ] = kpp.calMOSTscales(tau0, wb_sfc);
+            [ u_star, L_star ] = kpp.calMOSTscales(tau0, wb_0);
             d = -z;
             sig = d ./ h;
-
-            phi_s = kpp.calPhi_s(d, L_star);
-            w_s = kpp.c.kappa * u_star ./ phi_s;
+                   
+            if (x == kpp.c.SCALAR)
+                fprintf('L_star = %f\n', L_star);
+                phi_x = kpp.calPhi_s(d, L_star);
+                w_x = kpp.c.kappa * u_star ./ phi_x;
+                w_x_bnd = kpp.c.kappa * u_star / kpp.calPhi_s(h * kpp.c.eps, L_star); 
+            elseif (x == kpp.c.MOMENTUM)
+                phi_x = kpp.calPhi_m(d, L_star);
+                w_x = kpp.c.kappa * u_star ./ phi_x;
+                w_x_bnd = kpp.c.kappa * u_star / kpp.calPhi_m(h * kpp.c.eps, L_star); 
+            else
+                disp(x);
+                error('[calw_x] Unknown input');
+            end
             
-            % surface phi_s(1) = 0
-            w_s(1) = 1;
             
             if (L_star < 0) % convective case, w_s topped at sig = eps
                 for i=1:length(sig)
                     if (sig(i) >= kpp.c.eps)
-                        phi_s = kpp.calPhi_s(h * kpp.c.eps, L_star);
-                        w_s(i:end) = kpp.c.kappa * u_star / phi_s; 
+                        
+                        w_x(i:end) = w_x_bnd; 
                         break
                     end
                 end
             end
         end
         
-        function [ Ri, db, du_sqr, Vt_sqr ] = calBulkRichardsonNumber(kpp, grid, wb_sfc, b, u, v)
+        function [ Ri, db, du_sqr, Vt_sqr ] = calBulkRichardsonNumber(kpp, grid, wb_0, b, u, v)
             db = b(1) - b;
             du_sqr = (u(1) - u).^2 + (v(1) - v).^2;
-            Vt_sqr = grid.sop.T_interp_W * calUnresolvedShear(kpp, grid, b, wb_sfc);
+            Vt_sqr = grid.sop.T_interp_W * calUnresolvedShear(kpp, grid, b, wb_0);
 
             Ri = (- grid.z_T) .* db ./ ( du_sqr + Vt_sqr );
         end
@@ -75,17 +107,17 @@ classdef KPP < handle
         % LMD94 equation (27)
         % Input on T-grid, output on W-grid
         function [ Ri_g ] = calGradientRichardsonNumber(kpp, grid, b, u, v)
-            N = grid.sop.W_ddz_T * b;
+            N_sqr = grid.sop.W_ddz_T * b;
             dudz = grid.sop.W_ddz_T * u;
             dvdz = grid.sop.W_ddz_T * v;
             gradU_sqr = dudz.^2 + dvdz.^2;
-            Ri_g = grid.W_imask_W * ( N.^2 ./ gradU_sqr );
+            Ri_g = grid.W_imask_W * ( N_sqr ./ gradU_sqr );
             Ri_g(gradU_sqr == 0) = 1e20; % or inifinity
         end
         
         % k is the index of deepest layer of mixed-layer 
         % h = grid.h_W(k+1);
-        function [ h, k ] = calMixedLayerDepth(kpp, grid, Ri, u_star, f)
+        function [ h, k ] = calMixedLayerDepth(kpp, grid, Ri, u_star, L_star, f)
             
             % find Richardson number first exceeds kpp.c.Ri_c
             k = 0;
@@ -111,15 +143,28 @@ classdef KPP < handle
             
             h = grid.d_W(k+1);
             
-            % h cannot exceeds Ekman depth as in
+            
+            % When stable forcing (wb_0 < 0 or L_star > 0)
+            % h cannot exceeds L_star or Ekman depth as in
             % LMD94 equation (24)
-            h_E = (0.7 * u_star / f);
-            if (h > h_E && h < 0)
-                for i=2:grid.Nz  % start from 2 because h is at least one level
-                    if grid.d_W(i+1) > h_E
-                        k = i-1;
-                        h = grid.d_W(k+1);
-                        break;
+            if (L_star > 0)
+                if ( f == 0 )
+                    h_E = Inf;
+                else
+                    h_E = (0.7 * u_star / abs(f));
+                end
+                
+                h_max = min(h_E, L_star);
+                
+            
+            
+                if (h > h_max)
+                    for i=2:grid.Nz  % start from 2 because h is at least one level
+                        if grid.d_W(i+1) > h_max
+                            k = i-1;
+                            h = grid.d_W(k+1);
+                            break;
+                        end
                     end
                 end
             end
@@ -136,36 +181,36 @@ classdef KPP < handle
             
         end
             
-        % Calculate the interior diffusivity given by
+        % Calculate the shear related interior diffusivity given by
         % LMD equation (28). Ri_g is given in equation (27)
-        function K_s = calInteriorK_s(kpp, grid, b, u, v)
+        function K_sh = calInteriorK_sh(kpp, grid, b, u, v)
             Ri_g = calGradientRichardsonNumber(kpp, grid, b, u, v);
-            K_s = 50e-4 * kpp.shapeInterior(Ri_g);
+            K_sh = 50e-4 * kpp.shapeInterior(Ri_g);
         end
         
-        function [ K_s_ML, K_s_INT ]  = calK_s(kpp, grid, h_k, tau0, wb_sfc, b, u, v)
+        function [ K_x_ML, K_x_INT ]  = calK_x(kpp, x, grid, h_k, tau0, wb_0, b, u, v)
             d0 = @(v) spdiags(v(:),0,length(v(:)),length(v(:)));
             h = grid.d_W(h_k + 1);
            
-            [ w_s, sigma, ~, ~ ] = calw_s(kpp, grid.z_W, h, tau0, wb_sfc);
+            [ w_x, sigma, ~, ~ ] = kpp.calw_x(x, grid.z_W, h, tau0, wb_0);
             
             G = kpp.c.calG(sigma);
             W_ML_mask_W = d0( sigma <= 1 ); % Mixed-layer
             W_INT_mask_W = d0( sigma > 1 ); % Interior
             
-            K_s_ML = W_ML_mask_W * (h * G .* w_s);     
-            K_s_INT = W_INT_mask_W * calInteriorK_s(kpp, grid, b, u, v);
+            K_x_ML = W_ML_mask_W * (h * G .* w_x);     
+            K_x_INT = W_INT_mask_W * kpp.calInteriorK_sh(grid, b, u, v);
             
         end
         
         % LMD94 equation (19) and (20) for scalar
         % Also the same as RAD18 equation (19)
-        function flux = calNonLocalFlux_s(kpp, grid, h_k, wb_sfc, ws_sfc)
+        function flux = calNonLocalFlux_s(kpp, grid, h_k, wb_0, ws_0)
             
-            if (wb_sfc > 0) % unstable case, nonlocal flux is nonzero
+            if (wb_0 > 0) % unstable case, nonlocal flux is nonzero
                 h = grid.d_W(h_k+1);
                 sig = grid.d_W / h;
-                flux = kpp.c.C_s * kpp.c.calG(sig) * ws_sfc;
+                flux = kpp.c.C_s * kpp.c.calG(sig) * ws_0;
                 flux(sig > 1) = 0;
             else
                 flux = zeros(grid.W_pts, 1);

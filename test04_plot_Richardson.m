@@ -1,7 +1,7 @@
 clear;
 
 varnames = { "T", "S", "b", "Ri", "b_{sl} - b", "u_{sl} - u", "V_t^2", "N"};
-wb_sfc = 0.001;
+wb_0 = 0.001;
 Kv_iso = 1e-3;
 dt = 0.1;
 total_steps = 10 / dt;
@@ -12,15 +12,15 @@ f = 1e-4;
 m = Model(H, Nz, Kv_iso, dt, f);
 m.showModelInfo();
 
-m.state.wb_sfc = wb_sfc;
+m.state.wb_0 = wb_0;
 
 slope_T = 5 / H;
 slope_S = 1 / H;
-T_sfc = 30;
-S_sfc = 35;
+T_0 = 30;
+S_0 = 35;
 
-m.state.T = T_sfc + slope_T * m.grid.z_T;
-m.state.S = S_sfc + slope_S * m.grid.z_T;
+m.state.T = T_0 + slope_T * m.grid.z_T;
+m.state.S = S_0 + slope_S * m.grid.z_T;
 
 dT = 2; dT_width = 5; dT_cent = -H/2;
 dS = 0.5; dS_width = 3; dS_cent = -H/4;

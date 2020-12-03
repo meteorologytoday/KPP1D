@@ -11,7 +11,7 @@ h_k = floor(Nz / 2);
 m = Model(H, Nz, Kv_iso, dt, f);
 m.showModelInfo();
 
-wb_sfc_arr = [-0.1 0.05 0 1 0.05 0.1];
+wb_sfc_arr = [-0.1 1 0.05 0.1];
 legend_str = {};
 hold on;
 for i=1:length(wb_sfc_arr)
@@ -21,6 +21,7 @@ for i=1:length(wb_sfc_arr)
     legend_str{end+1} = sprintf('wb_{sfc} = %f', wb_sfc);
 end
 legend(gca, legend_str, 'Location', 'south');
+xlim([-1 1]);
 hold off;
 
 

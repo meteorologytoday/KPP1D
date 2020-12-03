@@ -67,13 +67,13 @@ for step = 1:total_steps
         plot(ax2, m.state.b, m.grid.z_T);
         hold(ax2, 'off');
         
-        pause(.1);
+        pause(.01);
         
 
     end
     
-    %m.stepModel_radiation();
-    m.stepModel();
+    m.stepModel_radiation();
+    %m.stepModel();
     
     t(end+1) = t(end) + dt;
     int_T(end+1) = sum( m.grid.dz_T .* m.state.T);
