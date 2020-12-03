@@ -47,8 +47,11 @@ Hf(1) = m.state.Hf_sen + m.state.Hf_lat;
 T(:, 1) = m.state.T;
 S(:, 1) = m.state.S;
 
+plot(m.state.T, m.grid.z_T);
+title('Temperature [degC]');
+xlim([19.6, 20.2]);
 
-hold on;
+pause(3);
 
 for step = 1:total_steps
     fprintf('Step %d\n', step);
@@ -58,6 +61,8 @@ for step = 1:total_steps
     diag_kpp = m.stepModel();
     
     plot(m.state.T, m.grid.z_T);
+    title('Temperature [degC]');
+    xlim([19.6, 20.2]);
     
     t(end+1) = t(end) + m.dt;
     h_sim(end+1) = m.state.h;
@@ -68,11 +73,10 @@ for step = 1:total_steps
     wS(:, step+1) = diag_kpp.loc_flux_S + diag_kpp.nloc_flux_S;
     T(:, step+1) = m.state.T;
     S(:, step+1) = m.state.S;
+    
     pause(pause_time);
+    
 end
-
-title('T');
-hold off;
 
 t = t/86400;
 
