@@ -3,33 +3,27 @@ classdef Model < handle
         grid
         c
         sf
-        H
-        Nz
-        Kv_iso
-        Kv_cva = 1e5
         dt
         state
         kpp
         rad
         f
+        momentum_nudging_timescale = 30 * 60
         SURFFLUX_REALISTIC = 1
         SURFFLUX_SIMPLE = 2
     end
     methods
 
-        function m = Model(H, Nz, Kv_iso, dt, f)
+        function m = Model(z_W, dt, f)
 
-            grid = makeGrid(H, Nz);
+            grid = makeGrid(z_W);
             c = Const();
-
+            
             m.c = c;
             m.sf = SurfaceFlux();
             m.grid = grid;
-            m.H = H;
-            m.Nz = Nz;
-            m.Kv_iso = Kv_iso;
             m.dt = dt;
-            m.state = State(Nz);
+            m.state = State(grid.Nz);
             m.kpp = KPP();
             m.rad = Radiation(grid);
             m.f = f;
@@ -40,10 +34,7 @@ classdef Model < handle
         
         function showModelInfo(m)
             fprintf("===== Model Info =====\n");
-            fprintf("Nz= %d\n", m.Nz);
-            fprintf("H = %f\n", m.H);
-            fprintf("K_iso = %f\n", m.Kv_iso);
-            fprintf("K_cva = %f\n", m.Kv_cva);
+            fprintf("Nz= %d\n", m.grid.Nz);
             fprintf("dt = %f\n", m.dt);
             fprintf("f = %f\n", m.f);
         end
@@ -51,6 +42,9 @@ classdef Model < handle
         function [ diag_kpp ] = stepModel(m, surf_flux_calculation_type)
             
             if (surf_flux_calculation_type == m.SURFFLUX_REALISTIC)
+                
+                % Need to input: U10, V10, T_a, q_a, T_o, I_0
+                
                 % Diagnose wu, wT, wq fluxes using the method
                 % "calSurfaceFluxes" in the class "SurfaceFlux" which is based
                 % on Monin-Obhukov similarity theory estimation. See that method
@@ -59,7 +53,7 @@ classdef Model < handle
 
                 m.state.taux0  = - wu * m.c.rho_a;
                 m.state.tauy0  = - wv * m.c.rho_a;
-                m.state.Hf_sen = wT_sen * m.c.rhocp_a;
+                m.state.Hf_sen = wT_sen * m.c.cprho_a;
                 m.state.Hf_lw  = wT_lw;
                 m.state.Hf_lat = wq * m.c.Lv_w;
 
@@ -92,7 +86,10 @@ classdef Model < handle
             
             
             m.stepModel_momentum();
+            
+            %m.stepModel_momentumNudging();
             m.stepModel_radiation();
+            
             diag_kpp = m.stepModel_KPP();
         end
                 
@@ -106,6 +103,19 @@ classdef Model < handle
         function stepModel_momentum(m)
             
             [ m.state.u(:), m.state.v(:) ] = m.calRK4Coriolis(m.f, m.dt, m.state.u, m.state.v);
+            
+        end
+ 
+        function stepModel_momentumNudging(m)
+            
+            nudge_idx = isfinite(m.state.u_nudging);
+            % (u_t+1 - u_t) / dt = - 1 / tau * ( u_t+1 - u_nudging )
+            % u_t+1 - u_t = - dt / tau * ( u_t+1 - u_nudging )
+            % u_t+1 (1 + dt / tau) = u_t + (dt / tau) * u_nudging
+            % u_t+1 = 1 / (1+dt/tau) * u_t + (dt/tau) * u_nudging
+            r = m.dt / m.momentum_nudging_timescale;
+            m.state.u(nudge_idx) = (m.state.u(nudge_idx) + r * m.state.u_nudging(nudge_idx)) / (1+r);
+            m.state.v(nudge_idx) = (m.state.v(nudge_idx) + r * m.state.v_nudging(nudge_idx)) / (1+r);
 
         end
         
@@ -173,6 +183,8 @@ classdef Model < handle
             
             op_local_flux_m = - d0(K_m_total) * m.grid.sop.W_ddz_T;
             op_diffusion_m = - m.grid.sop.T_ddz_W * op_local_flux_m;
+            
+            
             M_m = m.grid.T_I_T - m.dt * op_diffusion_m;
             
             diag_kpp.loc_flux_S = op_local_flux_s * m.state.S;
@@ -182,6 +194,7 @@ classdef Model < handle
             % nonlocal and surface flux
             m.state.S = M_s \ ( m.state.S - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_S + sfc_flux_S ));
             m.state.T = M_s \ ( m.state.T - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_T + sfc_flux_T ));
+    
             m.state.u = M_m \ ( m.state.u - m.dt * m.grid.sop.T_ddz_W * sfc_flux_u);
             m.state.v = M_m \ ( m.state.v - m.dt * m.grid.sop.T_ddz_W * sfc_flux_v);
             

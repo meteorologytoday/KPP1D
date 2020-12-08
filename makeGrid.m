@@ -1,13 +1,21 @@
-function [ grid ] = makeGrid(H, Nz)
+function [ grid ] = makeGrid(z_W)
+    
+    z_W = z_W(:); % make z_W into column form
+    
+    dz_T = z_W(1:end-1) - z_W(2:end);
+    
+    if ( any (dz_T <= 0) )
+        error('z_W is not monotonically decreaseing.');
+    end
+
+    Nz = length(z_W) - 1;
+    H = -z_W(end);
 
     d0 = @(v) spdiags(v(:),0,length(v(:)),length(v(:)));
 
     T_pts = Nz;
     W_pts = Nz+1;
 
-    dz = H / Nz;
-    z_W = 0:-dz:-H;
-    z_W = z_W(:); % make z_W into column form
     d_W = -z_W;
     
     if (any(d_W < 0))
@@ -15,8 +23,10 @@ function [ grid ] = makeGrid(H, Nz)
     end
     
     z_T = (z_W(1:end-1) + z_W(2:end)) / 2;
-    dz_W = z_W .* 0 + dz;
-    dz_T = z_T .* 0 + dz;
+    dz_W = z_W .* 0;
+    dz_W(2:end-1) = (dz_T(1:end-1) + dz_T(2:end) ) / 2;
+    dz_W(1) = dz_W(2);
+    dz_W(end) = dz_W(end-1);
     
     % grid operators
     mask_T = ones(T_pts, 1);
@@ -52,7 +62,6 @@ function [ grid ] = makeGrid(H, Nz)
     grid.T_pts = T_pts;
     grid.W_pts = W_pts;
     
-    grid.dz = dz;
     grid.z_W = z_W;
     grid.z_T = z_T;
     grid.dz_W = dz_W;

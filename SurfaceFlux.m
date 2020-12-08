@@ -62,9 +62,18 @@ classdef SurfaceFlux < handle
             % Claus-Clapyreon relation.
             % Directly given by Large and Pond (1982)
             % in the paragraph between equation (9) and (10)
+            q_o = 0.98 * sf.calSaturatedSpecificHumidity(T);
+            
+        end
+        
+        function q_s = calSaturatedSpecificHumidity(sf, T)
+            
+            % Claus-Clapyreon relation.
+            % Directly given by Large and Pond (1982)
+            % in the paragraph between equation (9) and (10)
             % Notice that the original formulat gives the unit of g / m^3
             % so we convert it to kg / m^3 by dividing it by 1000.
-            q_o = 0.98 * ( 64038e4 * exp( -5107.4 ./ (T + sf.c.Cel_Kel_offset) ) ) / 1000;
+            q_s =  64038e4 * exp( -5107.4 ./ (T + sf.c.Cel_Kel_offset) ) / 1000;
             
         end
         

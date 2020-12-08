@@ -6,6 +6,8 @@ classdef State < handle
         S
         b
         Ri
+        u_nudging
+        v_nudging
         B_f = 0
         wT_0 = 0
         wS_0 = 0
@@ -28,6 +30,8 @@ classdef State < handle
         taux0  = 0 % Pa
         tauy0  = 0 % Pa
         albedo = 0.06;
+        T_a = 0;
+        q_a = 0;
     end
     methods
 
@@ -38,6 +42,8 @@ classdef State < handle
             s.Ri = s.T * 0;
             s.u = s.T * 0;
             s.v = s.T * 0;
+            s.u_nudging = s.T * 0;
+            s.v_nudging = s.T * 0;
         end
         
     end
