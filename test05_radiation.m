@@ -39,7 +39,6 @@ title("Irradiance Flux convergence");
 
 linkaxes([ax{1} ax{2}], 'y');
 
-
 %%%% simulation %%%%
 
 figure;
@@ -73,6 +72,7 @@ for step = 1:total_steps
     end
     
     m.stepModel_radiation();
+    m.update_b(); % By design b is not updated before doing KPP. So we have to do it manually here.
     %m.stepModel();
     
     t(end+1) = t(end) + dt;

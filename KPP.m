@@ -74,7 +74,7 @@ classdef KPP < handle
             sig = d ./ h;
                    
             if (x == kpp.c.SCALAR)
-                fprintf('L_star = %f\n', L_star);
+                %fprintf('! L_star = %f\n', L_star);
                 phi_x = kpp.calPhi_s(d, L_star);
                 w_x = kpp.c.kappa * u_star ./ phi_x;
                 w_x_bnd = kpp.c.kappa * u_star / kpp.calPhi_s(h * kpp.c.eps, L_star); 

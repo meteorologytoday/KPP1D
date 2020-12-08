@@ -71,7 +71,7 @@ for step = 1:total_steps
 
     end
     
-    m.stepModel();
+    m.stepModel(m.SURFFLUX_SIMPLE);
     
 end
 

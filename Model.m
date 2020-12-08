@@ -2,6 +2,7 @@ classdef Model < handle
     properties
         grid
         c
+        sf
         H
         Nz
         Kv_iso
@@ -11,6 +12,8 @@ classdef Model < handle
         kpp
         rad
         f
+        SURFFLUX_REALISTIC = 1
+        SURFFLUX_SIMPLE = 2
     end
     methods
 
@@ -20,6 +23,7 @@ classdef Model < handle
             c = Const();
 
             m.c = c;
+            m.sf = SurfaceFlux();
             m.grid = grid;
             m.H = H;
             m.Nz = Nz;
@@ -44,29 +48,56 @@ classdef Model < handle
             fprintf("f = %f\n", m.f);
         end
         
-        function [ diag_kpp ] = stepModel(m)
-            % calculate surface forcing for temperature and salinity
+        function [ diag_kpp ] = stepModel(m, surf_flux_calculation_type)
+            
+            if (surf_flux_calculation_type == m.SURFFLUX_REALISTIC)
+                % Diagnose wu, wT, wq fluxes using the method
+                % "calSurfaceFluxes" in the class "SurfaceFlux" which is based
+                % on Monin-Obhukov similarity theory estimation. See that method
+                % for more paper details.
+                [ wu, wv, wT_sen, wT_lw, wq ] = m.sf.calSurfaceFluxes(m.state.U10, m.state.V10, m.state.T_a, m.state.q_a, m.state.T(1));
+
+                m.state.taux0  = - wu * m.c.rho_a;
+                m.state.tauy0  = - wv * m.c.rho_a;
+                m.state.Hf_sen = wT_sen * m.c.rhocp_a;
+                m.state.Hf_lw  = wT_lw;
+                m.state.Hf_lat = wq * m.c.Lv_w;
+
+            elseif (surf_flux_calculation_type == m.SURFFLUX_SIMPLE)
+                %m.state.taux0  = 0.01;
+                % do nothing
+            else
+                error('Unknown surf_flux_calculation_type: %d', surf_flux_calculation_type);
+            end
+            
+            
             T_0 = m.state.T(1);
             S_0 = m.state.S(1);
             alpha_0 = TS2alpha(T_0, S_0);
             beta_0 = TS2beta(T_0, S_0);
+            
+            % The flux calculation needs the following variables specified:
+            % taux0, tauy0, Hf_sen, Hf_lat, Hf_lw, I_0, albedo, h_k,
+            % precip, evap
             m.state.tau0 = sqrt(m.state.taux0^2 + m.state.tauy0^2);
-            m.state.wT_0 = (m.state.Hf_sen + m.state.Hf_lat) / m.c.cprho_sw;
-            m.state.wT_R = m.rad.coe_turbulent_flux_T(m.state.h_k) * m.state.I_0 / m.c.cprho_sw;
+            m.state.wT_0 = (m.state.Hf_sen + m.state.Hf_lat + m.state.Hf_lw) / m.c.cprho_sw;
+            m.state.wT_R = m.rad.coe_turbulent_flux_T(m.state.h_k) * (1 - m.state.albedo) * m.state.I_0 / m.c.cprho_sw;
             m.state.wS_0 = (m.state.precip - m.state.evap) * S_0;
+            
             m.state.wb_R = m.c.g * alpha_0 * m.state.wT_R;
             m.state.wb_0 = m.c.g * ( alpha_0 * m.state.wT_0 - beta_0 * m.state.wS_0 );
             m.state.wu_0 = - m.state.taux0 / m.c.rho_sw;
             m.state.wv_0 = - m.state.tauy0 / m.c.rho_sw;
             m.state.B_f = m.state.wb_R + m.state.wb_0;
             
+            
             m.stepModel_momentum();
             m.stepModel_radiation();
             diag_kpp = m.stepModel_KPP();
         end
-        
+                
         function stepModel_radiation(m)
-            [ ~, Q ] = m.rad.calRadiation(m.state.I_0 / m.c.cprho_sw);
+            [ ~, Q ] = m.rad.calRadiation( (1 - m.state.albedo) * m.state.I_0 / m.c.cprho_sw);
             m.state.T = m.state.T + m.dt * Q;
         end
 

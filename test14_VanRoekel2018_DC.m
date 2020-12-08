@@ -58,7 +58,7 @@ for step = 1:total_steps
     
     
     m.state.I_0 = F_sw_sim(end);    
-    diag_kpp = m.stepModel();
+    diag_kpp = m.stepModel(m.SURFFLUX_SIMPLE);
     
     plot(m.state.T, m.grid.z_T);
     title('Temperature [degC]');

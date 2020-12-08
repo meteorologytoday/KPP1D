@@ -48,7 +48,7 @@ hold on;
 
 for step = 1:total_steps
     fprintf('Step %d\n', step);
-    [ diag_kpp ] = m.stepModel();
+    [ diag_kpp ] = m.stepModel(m.SURFFLUX_SIMPLE);
     t(end+1) = t(end) + m.dt;
     h(end+1) = m.state.h;
     

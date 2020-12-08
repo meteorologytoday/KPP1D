@@ -44,7 +44,7 @@ hold on;
 
 for step = 1:total_steps
     fprintf('Step %d\n', step);
-    m.stepModel();
+    m.stepModel(m.SURFFLUX_SIMPLE);
     
     plot(ax{1}, m.state.T, m.grid.z_T);
     plot(ax{2}, m.state.u, m.grid.z_T);
