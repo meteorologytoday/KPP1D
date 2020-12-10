@@ -54,7 +54,7 @@ classdef SurfaceFlux < handle
                 C_T = 32.7 * C_D_sqrt * 1e-3;
             end
             
-            C_q = 34.6 * C_D_sqrt; 
+            C_q = 34.6 * C_D_sqrt * 1e-3; 
         end
 
         function q_o = calSeaSurfaceSpecificHumidity(sf, T)

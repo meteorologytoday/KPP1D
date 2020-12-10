@@ -8,6 +8,12 @@ classdef State < handle
         Ri
         u_nudging
         v_nudging
+        T_nudging
+        S_nudging
+        u_nudging_fix
+        v_nudging_fix
+        T_nudging_fix
+        S_nudging_fix
         B_f = 0
         wT_0 = 0
         wS_0 = 0
@@ -44,6 +50,12 @@ classdef State < handle
             s.v = s.T * 0;
             s.u_nudging = s.T * 0;
             s.v_nudging = s.T * 0;
+            s.T_nudging = s.T * 0;
+            s.S_nudging = s.T * 0;
+            s.u_nudging_fix = s.T * 0;
+            s.v_nudging_fix = s.T * 0;
+            s.T_nudging_fix = s.T * 0;
+            s.S_nudging_fix = s.T * 0;
         end
         
     end

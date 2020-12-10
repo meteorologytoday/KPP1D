@@ -9,6 +9,7 @@ classdef Model < handle
         rad
         f
         momentum_nudging_timescale = 30 * 60
+        scalar_nudging_timescale = 30 * 60
         SURFFLUX_REALISTIC = 1
         SURFFLUX_SIMPLE = 2
     end
@@ -56,6 +57,7 @@ classdef Model < handle
                 m.state.Hf_sen = wT_sen * m.c.cprho_a;
                 m.state.Hf_lw  = wT_lw;
                 m.state.Hf_lat = wq * m.c.Lv_w;
+                m.state.evap = wq / m.c.rho_fw;   % kg / m^2 / s / (kg/m^3)
 
             elseif (surf_flux_calculation_type == m.SURFFLUX_SIMPLE)
                 %m.state.taux0  = 0.01;
@@ -87,7 +89,8 @@ classdef Model < handle
             
             m.stepModel_momentum();
             
-            %m.stepModel_momentumNudging();
+            m.stepModel_momentumNudging();
+            m.stepModel_scalarNudging();
             m.stepModel_radiation();
             
             diag_kpp = m.stepModel_KPP();
@@ -119,7 +122,17 @@ classdef Model < handle
 
         end
         
-   
+
+        
+        function stepModel_scalarNudging(m)
+            % x_t+1 = (x_t + r * X) / (1+r)
+            % (x_t+1 - x_t) / dt = (x_t + r*X - x_t - r * x_t)/( (1+r)*dt )
+            % fix_rate_(t+0.5) = (r*X - r*x_t) / ( ( 1 + r ) * dt )
+            
+            [ m.state.T(:), m.state.T_nudging_fix(:) ] = nudgingProfileHelper(m.state.T, m.state.T_nudging, m.dt, m.scalar_nudging_timescale);
+            [ m.state.S(:), m.state.S_nudging_fix ] = nudgingProfileHelper(m.state.S, m.state.S_nudging, m.dt, m.scalar_nudging_timescale);
+        end
+        
         function stepModel_diffusion(m)
             
             % update buoyancy
@@ -268,4 +281,21 @@ classdef Model < handle
             v_new = v + dt/6 * (G_v_1 + 2*G_v_2 + 2*G_v_3 + G_v_4);
         end
     end
+end
+
+function [ nudged_profile, fix_rate ] = nudgingProfileHelper(profile, target_profile, dt, nudging_timescale)
+            % x_t+1 = (x_t + r * X) / (1+r)
+            % (x_t+1 - x_t) / dt = (x_t + r*X - x_t - r * x_t)/( (1+r)*dt )
+            % fix_rate_(t+0.5) = (r*X - r*x_t) / ( ( 1 + r ) * dt )
+            
+            nudged_profile = profile * 1;
+            fix_rate = profile * 0;
+
+            r = dt / nudging_timescale;
+            
+            nudge_idx = isfinite(target_profile);
+            nudged = (profile(nudge_idx) + r * target_profile(nudge_idx)) / (1+r);
+            
+            fix_rate(nudge_idx) = (nudged - profile(nudge_idx)) / dt;
+            nudged_profile(nudge_idx) = nudged;
 end
