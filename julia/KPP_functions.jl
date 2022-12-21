@@ -24,11 +24,11 @@ end
 function calUnresolvedShear(
     b    :: AbstractArray{Float64},
     B_f  :: Float64,
-    bmo  :: BasicMatrixOperator,
-    gd   :: Grid,
+    amo  :: AdvancedMatrixOperators,
+    gd   :: PolelikeCoordinate.Grid,
 )
 
-    N_osbl = bmo.W_ddz_T * b
+    N_osbl = amo.W_ddz_T * b
     N_osbl[N_osbl .< 0] = 0
 
     @. N_osbl = sqrt(N_osbl)
@@ -126,12 +126,12 @@ function calBulkRichardsonNumber(
     b   :: AbstractArray{Float64},
     u   :: Float64,
     v   :: Float64,
-    bmo :: BasicMatrixOperator,
-    gd  :: Grid,
+    amo :: AdvancedMatrixOperators,
+    gd  :: PolelikeCoordinate.Grid,
 )
     db = b[1] .- b
     du_sqr = (u[1] .- u).^2 + (v[1] .- v).^2
-    Vt_sqr = bmo.T_interp_W * calUnresolvedShear(b, B_f, bmo, gd)
+    Vt_sqr = amo.T_interp_W * calUnresolvedShear(b, B_f, amo, gd)
 
     Ri = (- gd.z_T) .* db ./ ( du_sqr + Vt_sqr )
 
@@ -144,16 +144,16 @@ function calGradientRichardsonNumber(
     b   :: AbstractArray{Float64},
     u   :: AbstractArray{Float64},
     v   :: AbstractArray{Float64},
-    bmo :: BasicMatrixOperator,
-    gd  :: Grid,
+    amo :: AdvancedMatrixOperators,
+    gd  :: PolelikeCoordinate.Grid,
 )
 
-    N_sqr = bmo.W_ddz_T * b
-    dudz = bmo.W_ddz_T * u
-    dvdz = bmo.W_ddz_T * v
+    N_sqr = amo.W_ddz_T * b
+    dudz = amo.W_ddz_T * u
+    dvdz = amo.W_ddz_T * v
     gradU_sqr = dudz.^2 .+ dvdz.^2
 
-    Ri_g = bmo.W_imask_W * ( N_sqr ./ gradU_sqr )
+    Ri_g = amo.W_imask_W * ( N_sqr ./ gradU_sqr )
 
     Ri_g[gradU_sqr == 0] = 1e20 # or inifinity
 
@@ -167,8 +167,8 @@ function calMixedLayerDepth(
     u_star :: Float64,
     L_star :: Float64,
     f      :: Float64,
-    bmo :: BasicMatrixOperator,
-    gd  :: Grid,
+    amo :: AdvancedMatrixOperators,
+    gd  :: PolelikeCoordinate.Grid,
 )
     
     # find Richardson number first exceeds Ri_c
@@ -239,10 +239,10 @@ function calInteriorK_sh(
     b :: AbstractArray{Float64},
     u :: AbstractArray{Float64},
     v :: AbstractArray{Float64},
-    bmo  :: BasicMatrixOperator,
-    grid :: Grid,
+    amo  :: AdvancedMatrixOperators,
+    grid :: PolelikeCoordinate.Grid,
 )
-    Ri_g = calGradientRichardsonNumber(b, u, v, bmo, grid)
+    Ri_g = calGradientRichardsonNumber(b, u, v, amo, grid)
     K_sh = 50e-4 * shapeInterior(Ri_g)
     return K_sh
 end
@@ -259,8 +259,8 @@ function calK_x(
     b :: AbstractArray{Float64},
     u :: AbstractArray{Float64},
     v :: AbstractArray{Float64},
-    bmo  :: BasicMatrixOperator,
-    grid :: Grid,
+    amo  :: AdvancedMatrixOperators,
+    grid :: PolelikeCoordinate.Grid,
 )
     
     h = grid.d_W[h_k + 1]
@@ -272,7 +272,7 @@ function calK_x(
     W_INT_mask_W = d0( 1.0 - ML_mask_arr )  # Interior     (σ >  1)
     
     K_x_ML  = W_ML_mask_W  * (h * G .* w_x) 
-    K_x_INT = W_INT_mask_W * calInteriorK_sh(b, u, v, bmo, grid)
+    K_x_INT = W_INT_mask_W * calInteriorK_sh(b, u, v, amo, grid)
 
     return K_x_ML, K_x_INT
 end
@@ -283,8 +283,8 @@ function calNonLocalFlux_s(
     h_k  :: Integer,
     B_f  :: Float64,
     ws_0 :: Float64,
-    bmo  :: BasicMatrixOperator,
-    grid :: Grid,
+    amo  :: AdvancedMatrixOperators,
+    grid :: PolelikeCoordinate.Grid,
 )
     
     if B_f > 0 # unstable case, nonlocal flux is nonzero
@@ -304,8 +304,8 @@ end
 function calNonLocalFlux_m(
     h_k  :: Integer,
     tau0 :: Float64,
-    bmo :: BasicMatrixOperator,
-    grid :: Grid,
+    amo :: AdvancedMatrixOperators,
+    grid :: PolelikeCoordinate.Grid,
 )
     flux = zeros(Float64, length(grid.W_pts), 1)
 
@@ -313,5 +313,6 @@ function calNonLocalFlux_m(
 end
 
     
-
-
+@inline function calG(x)
+    return x .* ( 1 .- x ).^2
+end 
