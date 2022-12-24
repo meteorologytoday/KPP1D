@@ -11,7 +11,7 @@ mutable struct Grid
     Δz_T  :: AbstractArray{Float64, 1}
     Δz_W  :: AbstractArray{Float64, 1}
   
-    function CurvilinearSphericalGrid(;
+    function Grid(;
         z_W    :: AbstractArray{Float64, 1}, 
     )
 
@@ -26,7 +26,7 @@ mutable struct Grid
         end
 
 
-        Nz = length(z_w) - 1
+        Nz = length(z_W) - 1
 
         z_T = ( z_W[1:end-1] + z_W[2:end] ) / 2.0
 

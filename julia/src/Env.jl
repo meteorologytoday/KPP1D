@@ -1,14 +1,13 @@
 mutable struct Env
 
-    Nz :: Integer
-
+    gd :: Grid
 
     function Env(
-        Nz :: Integer,
+        gd :: Grid,
     )
         
         return new(
-            Nz,
+            gd,
         )
         
     end

@@ -10,9 +10,10 @@ mutable struct State
     h_k :: Integer
 
     function State(
-        env :: Env,
+        ev :: Env,
     )
-       
+        Nz = ev.gd.Nz
+ 
         T   = zeros( Float64, Nz ) 
         S   = zeros( Float64, Nz ) 
         b   = zeros( Float64, Nz ) 
