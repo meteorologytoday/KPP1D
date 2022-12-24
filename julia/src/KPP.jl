@@ -20,6 +20,10 @@ module KPP
     include("KPP_functions.jl")
 
 
-
+    include("Env.jl") 
+    include("State.jl") 
+    include("Core.jl") 
+    include("Forcing.jl") 
+    include("Model.jl") 
 
 end
