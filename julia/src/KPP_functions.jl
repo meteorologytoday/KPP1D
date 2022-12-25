@@ -1,4 +1,4 @@
-function calMOSTscale(
+function calMOSTscales(
     τ0 :: Float64,
     B_f :: Float64,
 )
@@ -56,13 +56,16 @@ function calϕ_s(
 )
 
     ζ = d ./ L_star
+    ϕ_s = zeros(Float64, length(ζ))
 
     if L_star >= 0
-        ϕ_s = 1 + 5 * ζ
+        @. ϕ_s = 1 + 5 * ζ
     else
-        # c_s = 98.96 in KPPconstants
-        ϕ_s = (1 .- 16 * ζ).^(-1/2) .* (ζ .> -1.0) +
-            (-28.86 .- c_s * ζ).^(-1/3) .* (ζ .<= -1.0)
+        # c_s = 98.96 in KPP_constants.jl
+
+        for (i, _ζ) in enumerate(ζ)
+            ϕ_s[i] = ( _ζ > -1 ) ? (1 - 16 * _ζ)^(-1/2) : (-28.86 - c_s * _ζ)^(-1/3)
+        end
     end
 
     return ϕ_s
@@ -73,13 +76,18 @@ function calϕ_m(
     d      :: Union{AbstractArray{Float64}, Float64},
     L_star :: Float64,
 )    
-    ζ = d ./ L_star;
+    ζ = d ./ L_star
+    ϕ_m = zeros(Float64, length(ζ))
+
     if (L_star >= 0)
-        ϕ_m = 1 + 5 * ζ
+        @. ϕ_m = 1 + 5 * ζ
     else
-        ϕ_m = (1 .- 16*ζ).^(-1/4) .* (ζ .> -0.2) + 
-            (1.26 .- 8.38 * ζ).^(-1/3) .* (ζ .<= -0.2)
+        for (i, _ζ) in enumerate(ζ)
+            ϕ_m[i] = ( _ζ > -0.2 ) ? (1 - 16 * _ζ)^(-1/4) : (1.26 - 8.38 * _ζ)^(-1/3)
+        end
     end
+
+    return ϕ_m
 end
 
 #   function [ w_x, sig, u_star, L_star ] = calw_x(kpp, x, z, h, tau0, B_f)
