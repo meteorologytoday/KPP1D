@@ -21,8 +21,9 @@ mutable struct State
         u   = zeros( Float64, Nz ) 
         v   = zeros( Float64, Nz ) 
     
-        h = 1.0
+
         h_k = 1
+        h   = ev.gd.z_W[h_k + 1]
 
         return new(
             T,
@@ -36,3 +37,6 @@ mutable struct State
         )    
     end
 end
+
+
+

@@ -12,3 +12,5 @@ const cp_ρ_sw = ρ_sw * cp_sw
 const cp_ρ_a  = ρ_a  * cp_a
 
 const ρ0 = ρ_sw
+
+const BUOYANCY_TYPE = :LINEAR  # Possible options: [ :LINEAR, :NONLINEAR ]

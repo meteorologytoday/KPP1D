@@ -26,4 +26,7 @@ Base.@kwdef mutable struct Forcing
     T_a    :: Float64 = 0.0
     q_a    :: Float64 = 0.0
 
+
+    surf_flux_calculation_type :: Symbol = :REALISTIC
+
 end
