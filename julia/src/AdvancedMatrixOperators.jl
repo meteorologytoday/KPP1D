@@ -24,7 +24,6 @@ mutable struct AdvancedMatrixOperators
         gd             :: Grid,
         mask_T         :: AbstractArray{Float64, 1},
         bmo :: Union{Nothing, BasicMatrixOperators} = nothing,
-        onelayerΔa_T   :: Union{AbstractArray{Float64, 2}, Nothing} = nothing, 
     )
 
         # define a converter to make 2D variable repeat in z direction for Nz times

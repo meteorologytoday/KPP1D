@@ -21,8 +21,7 @@ module KPP
     include("Grid.jl")
     include("BasicMatrixOperators.jl")
     include("AdvancedMatrixOperators.jl")
-
-    include("MatrixOperators.jl")
+    include("Radiation.jl")
 
 
     include("Env.jl") 

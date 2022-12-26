@@ -4,6 +4,7 @@ mutable struct Env
 
     function Env(
         gd :: Grid,
+        f  :: Float64, # Coriolis parameter
     )
         
         return new(

@@ -25,7 +25,7 @@ function calUnresolvedShear(
     b    :: AbstractArray{Float64},
     B_f  :: Float64,
     amo  :: AdvancedMatrixOperators,
-    gd   :: PolelikeCoordinate.Grid,
+    gd   :: Grid,
 )
 
     N_osbl = amo.W_ddz_T * b
@@ -120,7 +120,7 @@ function calw_x(
     if L_star < 0 # In the case of convective condition, w_s is topped at σ = ϵ
         for i=1:length(σ)
             if σ[i] >= ϵ
-                w_x[i:end] .= w_x_bnd; 
+                w_x[i:end] .= w_x_bnd 
                 break
             end
         end
@@ -135,7 +135,7 @@ function calBulkRichardsonNumber(
     u   :: Float64,
     v   :: Float64,
     amo :: AdvancedMatrixOperators,
-    gd  :: PolelikeCoordinate.Grid,
+    gd  :: Grid,
 )
     db = b[1] .- b
     du_sqr = (u[1] .- u).^2 + (v[1] .- v).^2
@@ -153,7 +153,7 @@ function calGradientRichardsonNumber(
     u   :: AbstractArray{Float64},
     v   :: AbstractArray{Float64},
     amo :: AdvancedMatrixOperators,
-    gd  :: PolelikeCoordinate.Grid,
+    gd  :: Grid,
 )
 
     N_sqr = amo.W_ddz_T * b
@@ -176,7 +176,7 @@ function calMixedLayerDepth(
     L_star :: Float64,
     f      :: Float64,
     amo :: AdvancedMatrixOperators,
-    gd  :: PolelikeCoordinate.Grid,
+    gd  :: Grid,
 )
     
     # find Richardson number first exceeds Ri_c
@@ -248,7 +248,7 @@ function calInteriorK_sh(
     u :: AbstractArray{Float64},
     v :: AbstractArray{Float64},
     amo  :: AdvancedMatrixOperators,
-    grid :: PolelikeCoordinate.Grid,
+    grid :: Grid,
 )
     Ri_g = calGradientRichardsonNumber(b, u, v, amo, grid)
     K_sh = 50e-4 * shapeInterior(Ri_g)
@@ -268,7 +268,7 @@ function calK_x(
     u :: AbstractArray{Float64},
     v :: AbstractArray{Float64},
     amo  :: AdvancedMatrixOperators,
-    grid :: PolelikeCoordinate.Grid,
+    grid :: Grid,
 )
     
     h = grid.d_W[h_k + 1]
@@ -292,7 +292,7 @@ function calNonLocalFlux_s(
     B_f  :: Float64,
     ws_0 :: Float64,
     amo  :: AdvancedMatrixOperators,
-    grid :: PolelikeCoordinate.Grid,
+    grid :: Grid,
 )
     
     if B_f > 0 # unstable case, nonlocal flux is nonzero
@@ -313,7 +313,7 @@ function calNonLocalFlux_m(
     h_k  :: Integer,
     tau0 :: Float64,
     amo :: AdvancedMatrixOperators,
-    grid :: PolelikeCoordinate.Grid,
+    grid :: Grid,
 )
     flux = zeros(Float64, length(grid.W_pts), 1)
 

@@ -1,6 +1,7 @@
 
-function stepModel(
+function stepModel!(
     m :: Model,
+    dt :: Float64,
 )
 
     if m.fo.surf_flux_calculation_type == :ATM_FORCING
@@ -40,66 +41,150 @@ function stepModel(
     # The flux calculation needs the following variables specified:
     # taux0, tauy0, Hf_sen, Hf_lat, Hf_lw, I_0, albedo, h_k,
     # precip, evap
-    m.state.tau0 = sqrt(m.state.taux0^2 + m.state.tauy0^2);
-    m.state.wT_0 = (m.state.Hf_sen + m.state.Hf_lat + m.state.Hf_lw) / m.c.cprho_sw;
-    m.state.wT_R = m.rad.coe_turbulent_flux_T(m.state.h_k) * (1 - m.state.albedo) * m.state.I_0 / m.c.cprho_sw;
-    m.state.wS_0 = (m.state.precip - m.state.evap) * S_0;
+    m.fo.τ0   = sqrt(m.fo.τx0^2 + m.fo.τy0^2)
+    m.fo.wT_0 = (m.fo.Hf_sen + m.fo.Hf_lat + m.fo.Hf_lw) / cp_ρ_sw
+    m.fo.wT_R = m.co.rad.coe_turbulent_flux_T[m.st.h_k] * (1.0 - m.fo.albedo) * m.fo.I_0 / cp_ρ_sw
+    m.fo.wS_0 = (m.st.precip - m.st.evap) * S_0
     
-    m.state.wb_R = m.c.g * alpha_0 * m.state.wT_R;
-    m.state.wb_0 = m.c.g * ( alpha_0 * m.state.wT_0 - beta_0 * m.state.wS_0 );
-    m.state.wu_0 = - m.state.taux0 / m.c.rho_sw;
-    m.state.wv_0 = - m.state.tauy0 / m.c.rho_sw;
-    m.state.B_f = m.state.wb_R + m.state.wb_0;
+    m.fo.wb_R = g * α_T_0 * m.fo.wT_R;
+    m.fo.wb_0 = g * ( α_T_0 * m.fo.wT_0 - α_S_0 * m.fo.wS_0 )
+    m.fo.wu_0 = - m.fo.τx0 / ρ_sw
+    m.fo.wv_0 = - m.fo.τy0 / ρ_sw
+    m.fo.B_f = m.fo.wb_R + m.fo.wb_0
     
+    #stepModel_momentum(m)
+    stepModel_radiation!(m) 
+    #m.stepModel_momentumNudging();
+    #m.stepModel_scalarNudging();
+    #m.stepModel_radiation();
     
-    m.stepModel_momentum();
-    
-    m.stepModel_momentumNudging();
-    m.stepModel_scalarNudging();
-    m.stepModel_radiation();
-    
-    diag_kpp = m.stepModel_KPP();
+    diag_kpp = stepModel_KPP!(m)
 end
 
-        function m = Model(z_W, dt, f)
+function stepModel_radiation!(
+    m :: Model,
+)
+    _, Q = calRadiation(m.co.rad, (1.0 - m.fo.albedo) * m.fo.I_0 / cp_ρ_sw )
+    @. m.st.T += m.dt * Q;
+end
 
-            grid = makeGrid(z_W);
-            c = Const();
-            
-            m.c = c;
-            m.sf = SurfaceFlux();
-            m.grid = grid;
-            m.dt = dt;
-            m.state = State(grid.Nz);
-            m.kpp = KPP();
-            m.rad = Radiation(grid);
-            m.f = f;
-            
-            m.state.h_k = 1;
-            m.state.h = m.grid.d_W(m.state.h_k + 1);
-        end
-        
-        function showModelInfo(m)
-            fprintf("===== Model Info =====\n");
-            fprintf("Nz= %d\n", m.grid.Nz);
-            fprintf("dt = %f\n", m.dt);
-            fprintf("f = %f\n", m.f);
-        end
-        
-                
-        function stepModel_radiation(m)
-            [ ~, Q ] = m.rad.calRadiation( (1 - m.state.albedo) * m.state.I_0 / m.c.cprho_sw);
-            m.state.T = m.state.T + m.dt * Q;
-        end
+function stepModel_KPP!(
+    m :: Model,
+)
+    
+    bmo = m.co.amo.bmo
+    gd  = m.ev.gd
+    st  = m.st
+    # 1. Determine mixed-layer depth
+    update_ML!(m)
+    
+    # 2. Calculate incoming surface flux
+    sfc_flux_T    = zeros(Float64, bmo.W_pts, 1)
+    sfc_flux_T[1] = m.fo.wT_0
+    
+    sfc_flux_S    = zeros(Float64, bmo.W_pts, 1)
+    sfc_flux_S[1] = m.fo.wS_0
+    
+    sfc_flux_u    = zeros(Float64, bmo.W_pts, 1)
+    sfc_flux_v    = zeros(Float64, bmo.W_pts, 1)
+    sfc_flux_u[1] = m.fo.wu_0
+    sfc_flux_v[1] = m.fo.wv_0
+    
+    # 3. Calculate nonlocal transport
+    nloc_flux_T = KPP.calNonLocalFlux_s(gd, m.st.h_k, m.fo.wb_0, m.fo.wT_0 + m.fo.wT_R)
+    nloc_flux_S = KPP.calNonLocalFlux_s(gd, m.st.h_k, m.fo.wb_0, m.st.wS_0)
+    
+    
+    #m.state.T = m.state.T - m.dt * m.grid.sop.T_ddz_W * nloc_flux_T;
+    #m.state.S = m.state.S - m.dt * m.grid.sop.T_ddz_W * nloc_flux_S;
+    #m.update_b();
 
-        % For Coriolis terms. Use Runge-Kutta 4th order instead of
-        % Adam-Bashforth 3rd scheme to avoid storing extra values.
-        function stepModel_momentum(m)
-            
-            [ m.state.u(:), m.state.v(:) ] = m.calRK4Coriolis(m.f, m.dt, m.state.u, m.state.v);
-            
-        end
+
+    # 4. Build diffusion operator for Euler backward method
+    # calculate K_s of temperature and salinity
+    K_s_ML, K_s_INT = KPP.calK_x(
+        :SCALAR, 
+        gd,
+        m.st.h_k,
+        m.st.τ0,
+        m.st.wb_0,
+        m.st.b,
+        m.st.u,
+        m.st.v
+    )
+
+    # calculate K_m for u, v
+    K_m_ML, K_m_INT = KPP.calK_x(
+        :MOMENTUM,
+        gd,
+        m.st.h_k,
+        m.st.τ0,
+        m.st.wb_0,
+        m.st.b,
+        m.st.u,
+        m.st.v
+    )
+
+    # Total diffusivity is the mixed-layer one plus the internal one
+    K_s_total = K_s_ML + K_s_INT
+    K_m_total = K_m_ML + K_m_INT
+    
+    op_local_flux_s = - speye(K_s_total) * amo.W_∂z_T
+    op_diffusion_s  = - amo.T_DIVz_W * op_local_flux_s
+    M_s = bmo.T_I_T - dt * op_diffusion_s
+    
+    op_local_flux_m = - d0(K_m_total) * m.grid.sop.W_ddz_T;
+    op_diffusion_m = - m.grid.sop.T_ddz_W * op_local_flux_m;
+    
+    
+    M_m = m.grid.T_I_T - m.dt * op_diffusion_m;
+    
+    diag_kpp.loc_flux_S = op_local_flux_s * m.state.S;
+    diag_kpp.loc_flux_T = op_local_flux_s * m.state.T;
+    
+    % 5. Step the model states
+    % nonlocal and surface flux
+    m.state.S = M_s \ ( m.state.S - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_S + sfc_flux_S ));
+    m.state.T = M_s \ ( m.state.T - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_T + sfc_flux_T ));
+
+    m.state.u = M_m \ ( m.state.u - m.dt * m.grid.sop.T_ddz_W * sfc_flux_u);
+    m.state.v = M_m \ ( m.state.v - m.dt * m.grid.sop.T_ddz_W * sfc_flux_v);
+    
+    m.update_b();
  
+    
+    diag_kpp.nloc_flux_T = nloc_flux_T;
+    diag_kpp.nloc_flux_S = nloc_flux_S;
+    diag_kpp.K_s_ML = K_s_ML;
+    diag_kpp.K_s_INT = K_s_INT;
+    diag_kpp.K_m_ML = K_m_ML;
+    diag_kpp.K_m_INT = K_m_INT;
+    
+end
+
+function update_ML!(
+    m :: Model,
+)
+    u_star, L_star = KPP.calMOSTscales(m.fo.τ0, m.fo.B_f)
+    m.st.Ri, db, du_sqr, Vt_sqr = KPP.calBulkRichardsonNumber(m.ev.gd, m.fo.wb_0, m.st.b, m.st.u, m.st.v)
+    
+    m.st.h, m.st.h_k = KPP.calMixedLayerDepth(m.ev.gd, m.st.Ri, u_star, L_star, m.ev.f)
+
+    return m.st.h, m.st.Ri, db, du_sqr, Vt_sqr
+end
+
+
+#=
+% For Coriolis terms. Use Runge-Kutta 4th order instead of
+% Adam-Bashforth 3rd scheme to avoid storing extra values.
+
+function stepModel_momentum(m)
+    
+    [ m.state.u(:), m.state.v(:) ] = m.calRK4Coriolis(m.f, m.dt, m.state.u, m.state.v);
+    
+end
+
+
         function stepModel_momentumNudging(m)
             
             nudge_idx = isfinite(m.state.u_nudging);
@@ -140,92 +225,6 @@ end
             
             m.update_b();
             
-        end
-
-        function diag_kpp = stepModel_KPP(m)
-            
-            d0 = @(v) spdiags(v(:),0,length(v(:)),length(v(:)));
-            
-            % 1. Determine mixed-layer depth
-            m.update_ML();
-            
-            % 2. Calculate incoming surface flux
-            sfc_flux_T = zeros(m.grid.W_pts, 1);
-            sfc_flux_T(1) = m.state.wT_0;
-            
-            sfc_flux_S = zeros(m.grid.W_pts, 1);
-            sfc_flux_S(1) = m.state.wS_0;
-            
-            sfc_flux_u    = zeros(m.grid.W_pts, 1);
-            sfc_flux_v    = zeros(m.grid.W_pts, 1);
-            sfc_flux_u(1) = m.state.wu_0;
-            sfc_flux_v(1) = m.state.wv_0;
-            
-            % 3. Calculate nonlocal transport
-            nloc_flux_T = m.kpp.calNonLocalFlux_s(m.grid, m.state.h_k, m.state.wb_0, m.state.wT_0 + m.state.wT_R);
-            nloc_flux_S = m.kpp.calNonLocalFlux_s(m.grid, m.state.h_k, m.state.wb_0, m.state.wS_0);
-            
-            
-            %m.state.T = m.state.T - m.dt * m.grid.sop.T_ddz_W * nloc_flux_T;
-            %m.state.S = m.state.S - m.dt * m.grid.sop.T_ddz_W * nloc_flux_S;
-            %m.update_b();
-
-
-            % 4. Build diffusion operator for Euler backward method
-            % calculate K_s for temperature and salinity
-            [ K_s_ML, K_s_INT ]  = m.kpp.calK_x(m.kpp.c.SCALAR, m.grid, m.state.h_k, m.state.tau0, m.state.wb_0, m.state.b, m.state.u, m.state.v);
-
-            % calculate K_m for u, v
-            [ K_m_ML, K_m_INT ]  = m.kpp.calK_x(m.kpp.c.MOMENTUM, m.grid, m.state.h_k, m.state.tau0, m.state.wb_0, m.state.b, m.state.u, m.state.v);
-
-            K_s_total = K_s_ML + K_s_INT ;
-            K_m_total = K_m_ML + K_m_INT;
-            
-            op_local_flux_s = - d0(K_s_total) * m.grid.sop.W_ddz_T;
-            op_diffusion_s = - m.grid.sop.T_ddz_W * op_local_flux_s;
-            M_s = m.grid.T_I_T - m.dt * op_diffusion_s;
-            
-            op_local_flux_m = - d0(K_m_total) * m.grid.sop.W_ddz_T;
-            op_diffusion_m = - m.grid.sop.T_ddz_W * op_local_flux_m;
-            
-            
-            M_m = m.grid.T_I_T - m.dt * op_diffusion_m;
-            
-            diag_kpp.loc_flux_S = op_local_flux_s * m.state.S;
-            diag_kpp.loc_flux_T = op_local_flux_s * m.state.T;
-            
-            % 5. Step the model states
-            % nonlocal and surface flux
-            m.state.S = M_s \ ( m.state.S - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_S + sfc_flux_S ));
-            m.state.T = M_s \ ( m.state.T - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_T + sfc_flux_T ));
-    
-            m.state.u = M_m \ ( m.state.u - m.dt * m.grid.sop.T_ddz_W * sfc_flux_u);
-            m.state.v = M_m \ ( m.state.v - m.dt * m.grid.sop.T_ddz_W * sfc_flux_v);
-            
-            m.update_b();
-
-            
-            diag_kpp.nloc_flux_T = nloc_flux_T;
-            diag_kpp.nloc_flux_S = nloc_flux_S;
-            diag_kpp.K_s_ML = K_s_ML;
-            diag_kpp.K_s_INT = K_s_INT;
-            diag_kpp.K_m_ML = K_m_ML;
-            diag_kpp.K_m_INT = K_m_INT;
-            
-        end
-        
-        function update_b(m)
-            m.state.b = TS2b(m.state.T, m.state.S);
-        end
-        
-        function [ h, Ri, db, du_sqr, Vt_sqr ] = update_ML(m)
-            [ u_star, L_star ] = m.kpp.calMOSTscales(m.state.tau0, m.state.B_f);
-            [Ri, db, du_sqr, Vt_sqr ]  = m.kpp.calBulkRichardsonNumber(m.grid, m.state.wb_0, m.state.b, m.state.u, m.state.v);
-            
-            m.state.Ri(:) = Ri;
-            [m.state.h, m.state.h_k] = m.kpp.calMixedLayerDepth(m.grid, m.state.Ri, u_star, L_star, m.f);
-            
-            h = m.state.h;
         end
         
         function [ wT_0, wS_0, wb_0, tau0 ] = calSurfaceForcing(m)
@@ -290,3 +289,5 @@ function [ nudged_profile, fix_rate ] = nudgingProfileHelper(profile, target_pro
             fix_rate(nudge_idx) = (nudged - profile(nudge_idx)) / dt;
             nudged_profile(nudge_idx) = nudged;
 end
+
+=#
