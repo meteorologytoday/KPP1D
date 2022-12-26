@@ -12,15 +12,19 @@ mutable struct Radiation
 
     coe_flux_W           :: AbstractArray{Float64, 2}
     coe_fluxconv_T       :: AbstractArray{Float64, 2}
-    coe_total_flux_W     :: AbstractArray{Float64, 2}
-    coe_total_fluxconv_T :: AbstractArray{Float64, 2}
-    coe_turbulent_flux_T :: AbstractArray{Float64, 2}
+    coe_total_flux_W     :: AbstractArray{Float64, 1}
+    coe_total_fluxconv_T :: AbstractArray{Float64, 1}
+    coe_turbulent_flux_T :: AbstractArray{Float64, 1}
 
     function Radiation(;
         amo :: AdvancedMatrixOperators,
     )
-        r     = [0.58, 0.42]
+        r     = [0.58, 0.42]  # This array should sum to 1.0
         μ_inv = [0.35, 23.0]
+        
+        #r     = [0.00, 1.00] # for testing
+        #μ_inv = [0.35, 10.0] # for testing
+
         N     = length(r)
         
         gd = amo.gd
@@ -34,8 +38,8 @@ mutable struct Radiation
         end
 
         # Total flux across different type of radiation (i.e. longwave and shortwave)
-        coe_total_flux_W     = sum(coe_flux_W,     dims=2)
-        coe_total_fluxconv_T = sum(coe_fluxconv_T, dims=2)
+        coe_total_flux_W     = sum(coe_flux_W,     dims=2)[:, 1]
+        coe_total_fluxconv_T = sum(coe_fluxconv_T, dims=2)[:, 1]
 
         # Equation (A4) of Large et al. 1994
         # Basically this is a pre-calculated fraction of radiation

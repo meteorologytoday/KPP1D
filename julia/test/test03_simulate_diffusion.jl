@@ -4,20 +4,30 @@ using Formatting
 
 println(" *** This is a simulation to test convective adjustment. *** ")
 
-H  = 25.0   # m
+H  = 100.0   # m
 Nz = 1000
 f = 1e-4
 Kv_iso = 1e-3
-dt = 0.1
-total_time = 20.0
-total_steps = total_time / dt
+dt = 0.1    # second
+total_time = 3600.0
+total_steps = Int64(total_time / dt)
+
+plot_interval_physical_time = 10 * 60.0
+plot_interval_steps = floor(Int64, plot_interval_physical_time / dt)
+
 
 z_W = - collect(Float64, range(0, 1, length=1000)) * H
 
 
-ev = KPP.Env(KPP.Grid(z_W = z_W))
+ev = KPP.Env(
+    gd = KPP.Grid(z_W = z_W),
+    f  = f,
+)
 m = KPP.Model(ev)
 
+m.fo.I_0 = -200.0
+
+m.fo.surf_flux_calculation_type = :NOCALCULATION
 slope_T = 2.0 / H
 slope_S = -1.0 / H
 T_sfc = 30
@@ -28,79 +38,95 @@ dS = 0.5; dS_width = 3.0; dS_cent = -H/4;
 
 gaussian(mag, cent, width) = mag .* exp.(-( (m.ev.gd.z_T .- cent) ./ width ).^2 )
 
-@. m.st.T = T_sfc + slope_T * m.ev.gd.z_T
-@. m.st.S = S_sfc + slope_S * m.ev.gd.z_T
+#@. m.st.T = T_sfc + slope_T * m.ev.gd.z_T
+#@. m.st.S = S_sfc + slope_S * m.ev.gd.z_T
 
-m.st.T .+= gaussian(dT, dT_cent, dT_width)
-m.st.S .+= gaussian(dS, dS_cent, dS_width)
+#m.st.T .+= gaussian(dT, dT_cent, dT_width)
+#m.st.S .+= gaussian(dS, dS_cent, dS_width)
 
 KPP.updateBuoyancy!(m)
 
-#=
+
+# =====
+
+t    = zeros(Float64, total_steps + 1)
+∫Sdz = zeros(Float64, total_steps + 1)
+∫Tdz = zeros(Float64, total_steps + 1)
+∫bdz = zeros(Float64, total_steps + 1)
+
+# =====
+
 println("Loading PyPlot... ")
 using PyPlot
 plt=PyPlot
 println("Done.")
 
-figure;
 
-ax1 = subplot(1, 3, 1);
-ax2 = subplot(1, 3, 2);
-ax3 = subplot(1, 3, 3);
+fig, ax = plt.subplots(1, 3, sharey=true)
 
-title(ax1, "T");
-title(ax2, "S");
-title(ax3, "b");
-ylabel(ax1, 'z (m)');
+ax[1].set_title("T")
+ax[2].set_title("s")
+ax[3].set_title("b")
 
-t(1) = 0;
-int_S(1) = sum( m.grid.dz_T .* m.state.S);
-int_T(1) = sum( m.grid.dz_T .* m.state.T);
-int_b(1) = sum( m.grid.dz_T .* m.state.b);
+ax[1].set_ylabel("z [m]")
 
-for step = 1:total_steps
+t[1] = 0.0
 
+gd = m.ev.gd
+∫Sdz[1] = sum( gd.Δz_T .* m.st.S)
+∫Tdz[1] = sum( gd.Δz_T .* m.st.T)
+∫bdz[1] = sum( gd.Δz_T .* m.st.b)
+
+plt.ion()
+plt.show()
+
+for step = 1:total_steps+1
+
+    println(format("t = {:.2f} s", t[step]))
     
-    t(end+1) = t(end) + dt;
-    int_S(end+1) = sum( m.grid.dz_T .* m.state.S);
-    int_T(end+1) = sum( m.grid.dz_T .* m.state.T);
-    int_b(end+1) = sum( m.grid.dz_T .* m.state.b);
-        
-    if mod(step, 1) == 0
-        
-        hold(ax1, 'on');
-        plot(ax1, m.state.T, m.grid.z_T);
-        hold(ax1, 'off');
-        
-        hold(ax2, 'on');
-        plot(ax2, m.state.S, m.grid.z_T);
-        hold(ax2, 'off');
-        
-        hold(ax3, 'on');
-        plot(ax3, m.state.b, m.grid.z_T);
-        hold(ax3, 'off');
-        
-        pause(.01);
-        
+    if mod(step, plot_interval_steps) == 0
+       
+        ax[1].plot(m.st.T, gd.z_T)
+        ax[2].plot(m.st.S, gd.z_T)
+        ax[3].plot(m.st.b, gd.z_T)
+
+        fig.suptitle(format("t = {:.1f}", t[step]))
+
+        plt.draw()
+        sleep(0.1)
 
     end
     
-    m.stepModel(m.SURFFLUX_SIMPLE);
-    
+    if step == total_steps + 1
+        # The extra step is just for plotting
+        break
+    end
+
+    KPP.stepModel!(m, dt)
+
+    t[step+1] = t[step] + dt
+    ∫Sdz[step+1] = sum( gd.Δz_T .* m.st.S)
+    ∫Tdz[step+1] = sum( gd.Δz_T .* m.st.T)
+    ∫bdz[step+1] = sum( gd.Δz_T .* m.st.b)
+
 end
 
 
-figure;
-subplot(3,1,1);
-plot(t, int_T);
-title("Integrated T");
+#
 
-subplot(3,1,2);
-plot(t, int_S);
-title("Integrated S");
+fig, ax = plt.subplots(3, 1, sharex=true)
 
-subplot(3,1,3);
-plot(t, int_b);
-title("Integrated b");
-xlabel('time (s)');
-=#
+ax[1].plot(t, ∫Tdz)
+ax[1].set_title("\$ \\int T \\, \\mathrm{d}z \$")
+
+ax[2].plot(t, ∫Sdz)
+ax[2].set_title("\$ \\int S \\, \\mathrm{d}z \$")
+
+ax[3].plot(t, ∫bdz)
+ax[3].set_title("\$ \\int b \\, \\mathrm{d}z \$")
+
+
+
+ax[3].set_xlabel("time [s]")
+
+plt.show(block=true)

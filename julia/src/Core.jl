@@ -4,10 +4,10 @@ mutable struct Core
     rad :: Radiation
 
     function Core(
-        env :: Env,
+        ev :: Env,
     )
 
-        amo = AdvancedMatrixOperators(gd=ev.gd, mask=ev.mask_T)
+        amo = AdvancedMatrixOperators(gd=ev.gd, mask_T=ev.mask_T)
         rad = Radiation(amo=amo)
 
         return new(

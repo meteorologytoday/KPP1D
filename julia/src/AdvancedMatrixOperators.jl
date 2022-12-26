@@ -9,9 +9,11 @@ mutable struct AdvancedMatrixOperators
     T_∂z_W      :: AbstractArray{Float64, 2}
     
     W_interp_T :: AbstractArray{Float64, 2}  # interpolation of T grid onto W grid
+    T_interp_W :: AbstractArray{Float64, 2}  # interpolation of W grid onto T grid
 
     T_mask_T       :: AbstractArray{Float64, 2}
     W_mask_W       :: AbstractArray{Float64, 2}
+    #W_imask_W       :: AbstractArray{Float64, 2}  # internal mask
 
     T_Δz_T :: AbstractArray{Float64, 2}
     W_Δz_W :: AbstractArray{Float64, 2}
@@ -82,9 +84,13 @@ mutable struct AdvancedMatrixOperators
 
         #println("Making interpolations part 1") 
         ones_T  = ones(Float64, bmo.T_pts)
-
         W_interp_T = (bmo.W_DN_T + bmo.W_UP_T) * T_mask_T
         W_interp_T = selfDivision(W_interp_T, ones_T)
+
+        ones_W  = ones(Float64, bmo.W_pts)
+        T_interp_W = (bmo.T_DN_W + bmo.T_UP_W) * W_mask_W
+        T_interp_W = selfDivision(T_interp_W, ones_W)
+
 
         return new(
 
@@ -97,6 +103,7 @@ mutable struct AdvancedMatrixOperators
             T_∂z_W,
             
             W_interp_T,
+            T_interp_W,
 
             T_mask_T,
             W_mask_W,

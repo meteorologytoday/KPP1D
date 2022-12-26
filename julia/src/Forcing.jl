@@ -9,6 +9,9 @@ Base.@kwdef mutable struct Forcing
     wu_0 :: Float64  = 0.0
     wv_0 :: Float64  = 0.0
     
+    wT_R :: Float64  = 0.0
+    wb_R :: Float64  = 0.0
+    
     U10  :: Float64  = 0.0 # surface 10m wind speed on x direction
     V10  :: Float64  = 0.0 # surface 10m wind speed on y direction
     

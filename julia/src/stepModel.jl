@@ -27,7 +27,7 @@ function stepModel!(
         m.st.Hf_lat = wq * m.c.Lv_w
         m.st.evap = wq / m.c.ρ_fw      # kg / m^2 / s / (kg/m^3)
     
-    elseif m.fo.surf_flux_calculation_type == :NOCAL
+    elseif m.fo.surf_flux_calculation_type == :NOCALCULATION
         # do nothing
     else
         throw(ErrorException("Unknown surf_flux_calculation_type: $(m.st.surf_flux_calculation_type)"))
@@ -35,8 +35,8 @@ function stepModel!(
             
     T_0 = m.st.T[1]
     S_0 = m.st.S[1]
-    α_T_0 = TS2α_T(T_0, S_0)
-    α_S_0 = TS2α_S(T_0, S_0)
+    α_T_0 = Buoyancy.TS2α_T(T_0, S_0)
+    α_S_0 = Buoyancy.TS2α_S(T_0, S_0)
     
     # The flux calculation needs the following variables specified:
     # taux0, tauy0, Hf_sen, Hf_lat, Hf_lw, I_0, albedo, h_k,
@@ -44,7 +44,7 @@ function stepModel!(
     m.fo.τ0   = sqrt(m.fo.τx0^2 + m.fo.τy0^2)
     m.fo.wT_0 = (m.fo.Hf_sen + m.fo.Hf_lat + m.fo.Hf_lw) / cp_ρ_sw
     m.fo.wT_R = m.co.rad.coe_turbulent_flux_T[m.st.h_k] * (1.0 - m.fo.albedo) * m.fo.I_0 / cp_ρ_sw
-    m.fo.wS_0 = (m.st.precip - m.st.evap) * S_0
+    m.fo.wS_0 = (m.fo.precip - m.fo.evap) * S_0
     
     m.fo.wb_R = g * α_T_0 * m.fo.wT_R;
     m.fo.wb_0 = g * ( α_T_0 * m.fo.wT_0 - α_S_0 * m.fo.wS_0 )
@@ -53,26 +53,31 @@ function stepModel!(
     m.fo.B_f = m.fo.wb_R + m.fo.wb_0
     
     #stepModel_momentum(m)
-    stepModel_radiation!(m) 
+    stepModel_radiation!(m, dt) 
     #m.stepModel_momentumNudging();
     #m.stepModel_scalarNudging();
     #m.stepModel_radiation();
     
-    diag_kpp = stepModel_KPP!(m)
+    #diag_kpp = stepModel_KPP!(m, dt)
+    updateBuoyancy!(m)
 end
 
 function stepModel_radiation!(
     m :: Model,
+    dt :: Float64,
 )
     _, Q = calRadiation(m.co.rad, (1.0 - m.fo.albedo) * m.fo.I_0 / cp_ρ_sw )
-    @. m.st.T += m.dt * Q;
+    #println(Q * dt)
+    @. m.st.T += dt * Q
 end
 
 function stepModel_KPP!(
     m :: Model,
+    dt :: Float64,
 )
     
-    bmo = m.co.amo.bmo
+    amo = m.co.amo
+    bmo = amo.bmo
     gd  = m.ev.gd
     st  = m.st
     # 1. Determine mixed-layer depth
@@ -91,8 +96,8 @@ function stepModel_KPP!(
     sfc_flux_v[1] = m.fo.wv_0
     
     # 3. Calculate nonlocal transport
-    nloc_flux_T = KPP.calNonLocalFlux_s(gd, m.st.h_k, m.fo.wb_0, m.fo.wT_0 + m.fo.wT_R)
-    nloc_flux_S = KPP.calNonLocalFlux_s(gd, m.st.h_k, m.fo.wb_0, m.st.wS_0)
+    nloc_flux_T = calNonLocalFlux_s(m.st.h_k, m.fo.wb_0, m.fo.wT_0 + m.fo.wT_R, amo, gd)
+    nloc_flux_S = calNonLocalFlux_s(m.st.h_k, m.fo.wb_0, m.fo.wS_0, amo, gd)
     
     
     #m.state.T = m.state.T - m.dt * m.grid.sop.T_ddz_W * nloc_flux_T;
@@ -102,73 +107,80 @@ function stepModel_KPP!(
 
     # 4. Build diffusion operator for Euler backward method
     # calculate K_s of temperature and salinity
-    K_s_ML, K_s_INT = KPP.calK_x(
+    K_s_ML, K_s_INT = calK_x(
         :SCALAR, 
-        gd,
         m.st.h_k,
-        m.st.τ0,
-        m.st.wb_0,
+        m.fo.τ0,
+        m.fo.wb_0,
         m.st.b,
         m.st.u,
-        m.st.v
+        m.st.v,
+        amo,
+        gd,
     )
 
     # calculate K_m for u, v
-    K_m_ML, K_m_INT = KPP.calK_x(
+    K_m_ML, K_m_INT = calK_x(
         :MOMENTUM,
-        gd,
         m.st.h_k,
-        m.st.τ0,
-        m.st.wb_0,
+        m.fo.τ0,
+        m.fo.wb_0,
         m.st.b,
         m.st.u,
-        m.st.v
+        m.st.v,
+        amo,
+        gd,
     )
 
     # Total diffusivity is the mixed-layer one plus the internal one
     K_s_total = K_s_ML + K_s_INT
     K_m_total = K_m_ML + K_m_INT
     
-    op_local_flux_s = - speye(K_s_total) * amo.W_∂z_T
+    op_local_flux_s = - d0(K_s_total) * amo.W_∂z_T
     op_diffusion_s  = - amo.T_DIVz_W * op_local_flux_s
     M_s = bmo.T_I_T - dt * op_diffusion_s
     
-    op_local_flux_m = - d0(K_m_total) * m.grid.sop.W_ddz_T;
-    op_diffusion_m = - m.grid.sop.T_ddz_W * op_local_flux_m;
+    op_local_flux_m = - d0(K_m_total) * amo.W_∂z_T
+    op_diffusion_m = - amo.T_DIVz_W * op_local_flux_m
     
     
-    M_m = m.grid.T_I_T - m.dt * op_diffusion_m;
+    M_m = bmo.T_I_T - dt * op_diffusion_m
     
-    diag_kpp.loc_flux_S = op_local_flux_s * m.state.S;
-    diag_kpp.loc_flux_T = op_local_flux_s * m.state.T;
+    loc_flux_S = op_local_flux_s * m.st.S
+    loc_flux_T = op_local_flux_s * m.st.T
     
-    % 5. Step the model states
-    % nonlocal and surface flux
-    m.state.S = M_s \ ( m.state.S - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_S + sfc_flux_S ));
-    m.state.T = M_s \ ( m.state.T - m.dt * m.grid.sop.T_ddz_W * ( nloc_flux_T + sfc_flux_T ));
+    # 5. Step the model states
+    # nonlocal and surface flux
+    m.st.S[:] = M_s \ ( m.st.S - dt * amo.T_DIVz_W * ( nloc_flux_S + sfc_flux_S ))
+    m.st.T[:] = M_s \ ( m.st.T - dt * amo.T_DIVz_W * ( nloc_flux_T + sfc_flux_T ))
 
-    m.state.u = M_m \ ( m.state.u - m.dt * m.grid.sop.T_ddz_W * sfc_flux_u);
-    m.state.v = M_m \ ( m.state.v - m.dt * m.grid.sop.T_ddz_W * sfc_flux_v);
+    m.st.u[:] = M_m \ ( m.st.u - dt * amo.T_DIVz_W * sfc_flux_u )
+    m.st.v[:] = M_m \ ( m.st.v - dt * amo.T_DIVz_W * sfc_flux_v )
     
-    m.update_b();
+    updateBuoyancy!(m)
  
     
-    diag_kpp.nloc_flux_T = nloc_flux_T;
-    diag_kpp.nloc_flux_S = nloc_flux_S;
-    diag_kpp.K_s_ML = K_s_ML;
-    diag_kpp.K_s_INT = K_s_INT;
-    diag_kpp.K_m_ML = K_m_ML;
-    diag_kpp.K_m_INT = K_m_INT;
-    
+    diag_kpp = (
+        loc_flux_T  = loc_flux_T,
+        loc_flux_S  = loc_flux_S,
+        nloc_flux_T = nloc_flux_T,
+        nloc_flux_S = nloc_flux_S,
+        K_s_ML      = K_s_ML,
+        K_s_INT     = K_s_INT,
+        K_m_ML      = K_m_ML,
+        K_m_INT     = K_m_INT,
+    )
+
+    return diag_kpp
 end
 
 function update_ML!(
     m :: Model,
 )
     u_star, L_star = KPP.calMOSTscales(m.fo.τ0, m.fo.B_f)
-    m.st.Ri, db, du_sqr, Vt_sqr = KPP.calBulkRichardsonNumber(m.ev.gd, m.fo.wb_0, m.st.b, m.st.u, m.st.v)
+    m.st.Ri, db, du_sqr, Vt_sqr = KPP.calBulkRichardsonNumber(m.fo.wb_0, m.st.b, m.st.u, m.st.v, m.co.amo, m.ev.gd)
     
-    m.st.h, m.st.h_k = KPP.calMixedLayerDepth(m.ev.gd, m.st.Ri, u_star, L_star, m.ev.f)
+    m.st.h, m.st.h_k = KPP.calMixedLayerDepth(m.st.Ri, u_star, L_star, m.ev.f, m.co.amo, m.ev.gd)
 
     return m.st.h, m.st.Ri, db, du_sqr, Vt_sqr
 end

@@ -10,6 +10,8 @@ mutable struct Grid
 
     Δz_T  :: AbstractArray{Float64, 1}
     Δz_W  :: AbstractArray{Float64, 1}
+
+    d_W :: AbstractArray{Float64, 1}
   
     function Grid(;
         z_W    :: AbstractArray{Float64, 1}, 
@@ -43,12 +45,15 @@ mutable struct Grid
         Δz_W[1] = Δz_W[2]
         Δz_W[end] = Δz_W[end-1]
 
+        d_W = - z_W
+
         return new(
             Nz,
             z_T,
             z_W,
             Δz_T,
             Δz_W,
+            d_W,
         )
  
     end

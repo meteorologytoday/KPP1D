@@ -28,8 +28,8 @@ function calUnresolvedShear(
     gd   :: Grid,
 )
 
-    N_osbl = amo.W_ddz_T * b
-    N_osbl[N_osbl .< 0] = 0
+    N_osbl = amo.W_∂z_T * b
+    N_osbl[N_osbl .< 0] .= 0
 
     @. N_osbl = sqrt(N_osbl)
 
@@ -41,9 +41,9 @@ function calUnresolvedShear(
         w_star = d * 0
     end
 
-    Vtr_sqr = β_T * C_v / (Ri_c * kappa^(2/3) * (c_s * ϵ)^(1/6)) * (d .* N_osbl .* w_star)
+    Vtr_sqr = β_T * C_v / (Ri_c * κ^(2/3) * (c_s * ϵ)^(1/6)) * (d .* N_osbl .* w_star)
 
-    Vtr_sqr[Vtr_sqr .< min_Vtr_sqr] = min_Vtr_sqr
+    Vtr_sqr[Vtr_sqr .< min_Vtr_sqr] .= min_Vtr_sqr
 
     return Vtr_sqr
 
@@ -131,9 +131,9 @@ end
 
 function calBulkRichardsonNumber(
     B_f :: Float64,
-    b   :: AbstractArray{Float64},
-    u   :: Float64,
-    v   :: Float64,
+    b   :: AbstractArray{Float64, 1},
+    u   :: AbstractArray{Float64, 1},
+    v   :: AbstractArray{Float64, 1},
     amo :: AdvancedMatrixOperators,
     gd  :: Grid,
 )
@@ -156,14 +156,14 @@ function calGradientRichardsonNumber(
     gd  :: Grid,
 )
 
-    N_sqr = amo.W_ddz_T * b
-    dudz = amo.W_ddz_T * u
-    dvdz = amo.W_ddz_T * v
+    N_sqr = amo.W_∂z_T * b
+    dudz = amo.W_∂z_T * u
+    dvdz = amo.W_∂z_T * v
     gradU_sqr = dudz.^2 .+ dvdz.^2
 
-    Ri_g = amo.W_imask_W * ( N_sqr ./ gradU_sqr )
+    Ri_g = amo.W_mask_W * ( N_sqr ./ gradU_sqr )
 
-    Ri_g[gradU_sqr == 0] = 1e20 # or inifinity
+    Ri_g[gradU_sqr .== 0] .= 1e20 # or inifinity
 
     return Ri_g
 end
@@ -181,7 +181,7 @@ function calMixedLayerDepth(
     
     # find Richardson number first exceeds Ri_c
     k = -1
-    for i = 1:grid.Nz
+    for i = 1:gd.Nz
         if Ri[i] > Ri_c
             
             if i == 1
@@ -195,10 +195,10 @@ function calMixedLayerDepth(
     
     # Whole except of the last layer becomes mix layer
     if k == -1  # cannot find the bottom of mix layer
-        k = grid.Nz - 1
+        k = gd.Nz - 1
     end
     
-    h = grid.d_W[k+1]
+    h = gd.d_W[k+1]
     
     
     # When stable forcing (B_f < 0 or L_star > 0) h cannot exceeds 
@@ -214,10 +214,10 @@ function calMixedLayerDepth(
         h_max = min(h_E, L_star)
 
         if h > h_max
-            for i=2:grid.Nz  # start from 2 because h is at least one level
-                if grid.d_W[i+1] > h_max
+            for i=2:gd.Nz  # start from 2 because h is at least one level
+                if gd.d_W[i+1] > h_max
                     k = i-1
-                    h = grid.d_W[k+1]
+                    h = gd.d_W[k+1]
                     break
                 end
             end
@@ -235,8 +235,8 @@ function shapeInterior(
 )
     
     S = (1 .- (x ./ 0.7).^2).^3
-    S[x < 0]    .= 1.0
-    S[x >= 0.7] .= 0.0
+    S[x .< 0]    .= 1.0
+    S[x .>= 0.7] .= 0.0
 
     return S    
 end
@@ -248,9 +248,9 @@ function calInteriorK_sh(
     u :: AbstractArray{Float64},
     v :: AbstractArray{Float64},
     amo  :: AdvancedMatrixOperators,
-    grid :: Grid,
+    gd :: Grid,
 )
-    Ri_g = calGradientRichardsonNumber(b, u, v, amo, grid)
+    Ri_g = calGradientRichardsonNumber(b, u, v, amo, gd)
     K_sh = 50e-4 * shapeInterior(Ri_g)
     return K_sh
 end
@@ -268,19 +268,19 @@ function calK_x(
     u :: AbstractArray{Float64},
     v :: AbstractArray{Float64},
     amo  :: AdvancedMatrixOperators,
-    grid :: Grid,
+    gd :: Grid,
 )
     
-    h = grid.d_W[h_k + 1]
-    w_x, σ, _, _ = calw_x(x, grid.z_W, h, τ0, B_f)
+    h = gd.d_W[h_k + 1]
+    w_x, σ, _, _ = calw_x(x, gd.z_W, h, τ0, B_f)
     
     G = calG(σ)
-    ML_mask_arr = convert(Array{Float64}, σ <= 1)
+    ML_mask_arr = convert(Array{Float64}, σ .<= 1)
     W_ML_mask_W = d0( ML_mask_arr )         # Mixed-layer  (σ <= 1)
-    W_INT_mask_W = d0( 1.0 - ML_mask_arr )  # Interior     (σ >  1)
+    W_INT_mask_W = d0( 1.0 .- ML_mask_arr )  # Interior     (σ >  1)
     
     K_x_ML  = W_ML_mask_W  * (h * G .* w_x) 
-    K_x_INT = W_INT_mask_W * calInteriorK_sh(b, u, v, amo, grid)
+    K_x_INT = W_INT_mask_W * calInteriorK_sh(b, u, v, amo, gd)
 
     return K_x_ML, K_x_INT
 end
@@ -292,16 +292,16 @@ function calNonLocalFlux_s(
     B_f  :: Float64,
     ws_0 :: Float64,
     amo  :: AdvancedMatrixOperators,
-    grid :: Grid,
+    gd :: Grid,
 )
     
     if B_f > 0 # unstable case, nonlocal flux is nonzero
-        h    = grid.d_W[h_k+1]
-        sig  = grid.d_W / h
+        h    = gd.d_W[h_k+1]
+        sig  = gd.d_W / h
         flux = C_s * calG.(sig) * ws_0
         flux[sig .> 1] .= 0.0
     else
-        flux = zeros(Float64, grid.W_pts, 1)
+        flux = zeros(Float64, amo.bmo.W_pts, 1)
     end
     
     return flux
@@ -313,9 +313,9 @@ function calNonLocalFlux_m(
     h_k  :: Integer,
     tau0 :: Float64,
     amo :: AdvancedMatrixOperators,
-    grid :: Grid,
+    gd :: Grid,
 )
-    flux = zeros(Float64, length(grid.W_pts), 1)
+    flux = zeros(Float64, length(amo.bmo.W_pts), 1)
 
     return flux
 end

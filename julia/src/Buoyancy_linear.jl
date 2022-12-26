@@ -4,7 +4,7 @@ module Buoyancy_linear
     const S_ref =  35.0
     const α_T   = 2e-4
     const α_S   = 8e-4
-    const g               = 9.80616     # m / s^2      copied from models/csm_share/shr/shr_const_mod.F90
+    const g     = 9.80616     # m / s^2      copied from models/csm_share/shr/shr_const_mod.F90
     
     function TS2b(
         T :: Float64,

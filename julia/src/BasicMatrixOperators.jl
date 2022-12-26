@@ -35,8 +35,8 @@ struct BasicMatrixOperators
         Nz             :: Int64,
     )
 
-        T_dim = (Nz, Nx, Ny)
-        W_dim = (Nz+1, Nx, Ny)
+        T_dim = (Nz, )
+        W_dim = (Nz+1, )
 
         T_pts = reduce(*, T_dim)
         W_pts = reduce(*, W_dim)
@@ -62,14 +62,10 @@ struct BasicMatrixOperators
            #println("Build!")
             local result
             rows = size(id_mtx)[1]
-            if wipe == :n
-                idx[:, :, end] .= rows
-            elseif wipe == :s
-                idx[:, :,   1] .= rows
-            elseif wipe == :t
-                idx[1, :, :] .= rows
+            if wipe == :t
+                idx[1] = rows
             elseif wipe == :b
-                idx[end, :, :] .= rows
+                idx[end] = rows
             elseif wipe != :none
                 throw(ErrorException("Wrong keyword"))
             end
@@ -85,11 +81,11 @@ struct BasicMatrixOperators
         end
 
         # upward, downward passing mtx
-        T[1:Nz-1, :, :] = view(num_T, 2:Nz,   :, :);    T_UP_T = build!(T_I_T_expand, T; wipe=:b)
-        T[2:Nz,   :, :] = view(num_T, 1:Nz-1, :, :);    T_DN_T = build!(T_I_T_expand, T; wipe=:t)
+        T[1:Nz-1] = view(num_T, 2:Nz,  );    T_UP_T = build!(T_I_T_expand, T; wipe=:b)
+        T[2:Nz  ] = view(num_T, 1:Nz-1,);    T_DN_T = build!(T_I_T_expand, T; wipe=:t)
 
-        T[:, :, :] = view(num_W, 2:Nz+1, :, :);         T_UP_W = build!(W_I_W_expand, T)
-        T[:, :, :] = view(num_W, 1:Nz  , :, :);         T_DN_W = build!(W_I_W_expand, T)
+        T[:     ] = view(num_W, 2:Nz+1,);    T_UP_W = build!(W_I_W_expand, T)
+        T[:     ] = view(num_W, 1:Nz  ,);    T_DN_W = build!(W_I_W_expand, T)
 
         # inverse directions
         W_DN_T = T_UP_W' |> sparse

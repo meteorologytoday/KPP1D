@@ -33,5 +33,5 @@ module KPP
     include("KPP_constants.jl")
     include("KPP_functions.jl")
     include("other_functions.jl")
-
+    include("stepModel.jl")
 end
