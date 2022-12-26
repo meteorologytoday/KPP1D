@@ -38,11 +38,11 @@ dS = 0.5; dS_width = 3.0; dS_cent = -H/4;
 
 gaussian(mag, cent, width) = mag .* exp.(-( (m.ev.gd.z_T .- cent) ./ width ).^2 )
 
-#@. m.st.T = T_sfc + slope_T * m.ev.gd.z_T
-#@. m.st.S = S_sfc + slope_S * m.ev.gd.z_T
+@. m.st.T = T_sfc + slope_T * m.ev.gd.z_T
+@. m.st.S = S_sfc + slope_S * m.ev.gd.z_T
 
-#m.st.T .+= gaussian(dT, dT_cent, dT_width)
-#m.st.S .+= gaussian(dS, dS_cent, dS_width)
+m.st.T .+= gaussian(dT, dT_cent, dT_width)
+m.st.S .+= gaussian(dS, dS_cent, dS_width)
 
 KPP.updateBuoyancy!(m)
 
@@ -80,28 +80,25 @@ gd = m.ev.gd
 plt.ion()
 plt.show()
 
-for step = 1:total_steps+1
+function plot(step :: Int64)
+
+    ax[1].plot(m.st.T, gd.z_T)
+    ax[2].plot(m.st.S, gd.z_T)
+    ax[3].plot(m.st.b, gd.z_T)
+
+    fig.suptitle(format("t = {:.1f} s", t[step]))
+        
+    plt.draw()
+end
+
+
+plot(1)
+
+for step = 1:total_steps
 
     println(format("t = {:.2f} s", t[step]))
     
-    if mod(step, plot_interval_steps) == 0
-       
-        ax[1].plot(m.st.T, gd.z_T)
-        ax[2].plot(m.st.S, gd.z_T)
-        ax[3].plot(m.st.b, gd.z_T)
-
-        fig.suptitle(format("t = {:.1f}", t[step]))
-
-        plt.draw()
-        sleep(0.1)
-
-    end
-    
-    if step == total_steps + 1
-        # The extra step is just for plotting
-        break
-    end
-
+   
     KPP.stepModel!(m, dt)
 
     t[step+1] = t[step] + dt
@@ -109,6 +106,13 @@ for step = 1:total_steps+1
     ∫Tdz[step+1] = sum( gd.Δz_T .* m.st.T)
     ∫bdz[step+1] = sum( gd.Δz_T .* m.st.b)
 
+    if mod(step, plot_interval_steps) == 0
+        
+        plot(step+1)
+        sleep(0.1)
+
+    end
+ 
 end
 
 

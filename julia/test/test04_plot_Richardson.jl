@@ -1,4 +1,3 @@
-clear;
 
 varnames = { "T", "S", "b", "Ri", "b_{sl} - b", "u_{sl} - u", "V_t^2", "N"};
 wb_0 = 0.001;
